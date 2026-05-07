@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WashLink Ground Reality Intelligence Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <style>
+    :root {
+      --bg: #050816;
+      --bg-elev: rgba(11, 18, 36, 0.7);
+      --bg-elev-2: rgba(16, 25, 50, 0.78);
+      --line: rgba(138, 163, 255, 0.16);
+      --text: #f6f7fb;
+      --muted: #97a5d1;
+      --muted-2: #7181b7;
+      --cyan: #44f0ff;
+      --teal: #49f6b3;
+      --amber: #ffbf69;
+      --rose: #ff6fb5;
+      --violet: #8d7dff;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      --radius: 24px;
+      --radius-sm: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(68, 240, 255, 0.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(141, 125, 255, 0.16), transparent 32%),
+        radial-gradient(circle at bottom left, rgba(73, 246, 179, 0.08), transparent 28%),
+        linear-gradient(180deg, #040710 0%, #060b18 45%, #03050c 100%);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(circle at center, black, transparent 80%);
+      pointer-events: none;
+      opacity: 0.28;
+    }
+
+    .page {
+      width: min(1480px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 30px 32px 28px;
+      border: 1px solid var(--line);
+      border-radius: 32px;
+      background:
+        linear-gradient(135deg, rgba(68, 240, 255, 0.1), rgba(141, 125, 255, 0.08)),
+        rgba(7, 12, 26, 0.82);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      margin-bottom: 18px;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -120px -120px auto;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(68, 240, 255, 0.18), transparent 70%);
+      filter: blur(20px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(68, 240, 255, 0.22);
+      background: rgba(68, 240, 255, 0.08);
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(32px, 4vw, 54px);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      max-width: 960px;
+    }
+
+    .hero p {
+      margin: 16px 0 0;
+      color: var(--muted);
+      max-width: 880px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .meta-pill, .signal-pill, .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .meta-pill strong, .signal-pill strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .metric-card, .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+        var(--bg-elev);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+    }
+
+    .metric-card {
+      padding: 22px;
+      min-height: 160px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .metric-card:hover, .panel:hover {
+      transform: translateY(-2px);
+      border-color: rgba(68, 240, 255, 0.28);
+      box-shadow: 0 28px 88px rgba(0, 0, 0, 0.5);
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      inset: auto -32px -54px auto;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(68, 240, 255, 0.14), transparent 72%);
+      opacity: 0.9;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .metric-value {
+      margin-top: 18px;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(26px, 2.4vw, 40px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .metric-subtext {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 220px;
+    }
+
+    .signal-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .signal-pill {
+      padding: 12px 16px;
+      background: rgba(8, 13, 28, 0.92);
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .grid.two {
+      grid-template-columns: 1.35fr 1fr;
+    }
+
+    .grid.equal {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel {
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-copy {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.75;
+      max-width: 900px;
+    }
+
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .chart {
+      width: 100%;
+      height: 360px;
+    }
+
+    .chart.short {
+      height: 290px;
+    }
+
+    .chart.tall {
+      height: 430px;
+    }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    #intelMap {
+      height: 520px;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      background: #050813;
+    }
+
+    .leaflet-container {
+      font-family: "IBM Plex Sans", sans-serif;
+      background: #050813;
+    }
+
+    .map-sidebar {
+      display: grid;
+      gap: 14px;
+    }
+
+    .stack-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(5, 10, 22, 0.78);
+    }
+
+    .stack-card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .stack-card p, .stack-card li {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .stack-card ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .search-box input {
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .list-panel {
+      display: grid;
+      gap: 10px;
+      max-height: 260px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .list-panel::-webkit-scrollbar, .table-wrap::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    .list-panel::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.12);
+      border-radius: 999px;
+    }
+
+    .search-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      transition: border-color 150ms ease, background 150ms ease;
+      cursor: pointer;
+    }
+
+    .search-item:hover {
+      border-color: rgba(68, 240, 255, 0.32);
+      background: rgba(68, 240, 255, 0.06);
+    }
+
+    .search-item strong {
+      display: block;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .search-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      min-height: 145px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mini-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -50px -55px auto;
+      width: 130px;
+      height: 130px;
+      background: radial-gradient(circle, rgba(68, 240, 255, 0.14), transparent 72%);
+      opacity: 0.6;
+    }
+
+    .mini-kicker {
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+      font-family: "JetBrains Mono", monospace;
+      margin-bottom: 12px;
+    }
+
+    .mini-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .mini-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .micro-meta {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted-2);
+    }
+
+    .table-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 460px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      position: sticky;
+      top: 0;
+      background: rgba(5, 10, 22, 0.96);
+      z-index: 1;
+    }
+
+    tbody tr:hover td {
+      background: rgba(68, 240, 255, 0.04);
+    }
+
+    .table-title {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .registry-wrap table {
+      min-width: 760px;
+    }
+
+    .method-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .method-list div {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .footer-note {
+      margin-top: 10px;
+      color: var(--muted-2);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .empty-state, .empty-cell {
+      color: var(--muted);
+      padding: 18px;
+      font-size: 14px;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: rgba(8, 13, 28, 0.96);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .leaflet-popup-content {
+      margin: 14px 16px;
+      font-family: "IBM Plex Sans", sans-serif;
+      min-width: 220px;
+    }
+
+    .leaflet-popup-content strong {
+      display: block;
+      margin-bottom: 8px;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    @media (max-width: 1280px) {
+      .metrics-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .map-layout, .grid.two, .table-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 20px, 1480px);
+        padding-top: 18px;
+      }
+
+      .hero {
+        padding: 24px 20px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-card {
+        min-height: 136px;
+      }
+
+      #intelMap {
+        height: 420px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="eyebrow">WashLink Ground Reality Intelligence</div>
+      <h1>Offline car wash supply mapped into an executive operating picture.</h1>
+      <p>
+        This board dashboard is generated directly from <code>ANALYSIS_DATA_parsed.csv</code>.
+        Every chart, table, and insight is tied to real records, parsed locality structure,
+        and CSV-derived spatial anchors only.
+      </p>
+      <div class="hero-meta">
+        <div class="meta-pill"><strong>107</strong> total records</div>
+        <div class="meta-pill"><strong>104</strong> structured location rows</div>
+        <div class="meta-pill"><strong>104</strong> plotted map points</div>
+        <div class="meta-pill"><strong>482002</strong> dominant pin cluster</div>
+      </div>
+    </section>
+
+    <section class="metrics-grid">
+      
+            <article class="metric-card">
+              <div class="metric-label">Total Centers</div>
+              <div class="metric-value" data-counter="107">107</div>
+              <div class="metric-subtext">104 spatially structured</div>
+            </article>
+            
+            <article class="metric-card">
+              <div class="metric-label">Total Cities</div>
+              <div class="metric-value" data-counter="1">1</div>
+              <div class="metric-subtext">Observed in parsed records</div>
+            </article>
+            
+            <article class="metric-card">
+              <div class="metric-label">Unique Areas</div>
+              <div class="metric-value" data-counter="83">83</div>
+              <div class="metric-subtext">Distinct parsed locality strings</div>
+            </article>
+            
+            <article class="metric-card">
+              <div class="metric-label">Unique PIN Codes</div>
+              <div class="metric-value" data-counter="10">10</div>
+              <div class="metric-subtext">Coverage breadth from file</div>
+            </article>
+            
+            <article class="metric-card">
+              <div class="metric-label">Top Concentration Zone</div>
+              <div class="metric-value" data-counter="482002">482002</div>
+              <div class="metric-subtext">47 centers</div>
+            </article>
+            
+            <article class="metric-card">
+              <div class="metric-label">Top Repeated Locality</div>
+              <div class="metric-value" data-counter="Napier Town">Napier Town</div>
+              <div class="metric-subtext">5 centers</div>
+            </article>
+            
+    </section>
+
+    <section class="signal-strip">
+      <div class="signal-pill"><span>Spatial Coverage</span><strong>104/107 mapped</strong></div><div class="signal-pill"><span>Fragmentation Index</span><strong>99.3/100</strong></div><div class="signal-pill"><span>Top 3 PIN Share</span><strong>85.6%</strong></div><div class="signal-pill"><span>Single-Center Localities</span><strong>60</strong></div>
+    </section>
+
+    <section class="panel" style="margin-bottom: 16px;">
+      <div class="section-head">
+        <div>
+          <h2>Interactive Map Intelligence</h2>
+          <p class="panel-copy">
+            Markers are plotted from CSV-derived locality, intersection, road, or pincode lookups.
+            Search is wired to the actual center registry and zooms the map to matching records.
+          </p>
+        </div>
+        <div class="tag">No synthetic business KPIs</div>
+      </div>
+      <div class="map-layout">
+        <div id="intelMap"></div>
+        <div class="map-sidebar">
+          <div class="stack-card">
+            <h3>Board Signals</h3>
+            <ul>
+              <li>104 of 107 records contain structured location fields and feed the spatial views.</li><li>Pincode 482002 concentrates 47 centers, or 45.2% of usable supply.</li><li>The top three pincodes hold 85.6% of the file, while the top five primary localities hold 21.2%.</li><li>60 of 73 primary localities appear only once, confirming a strong long-tail market shape.</li>
+            </ul>
+          </div>
+          <div class="stack-card">
+            <h3>Center Search</h3>
+            <div class="search-box">
+              <input id="centerSearch" type="text" placeholder="Search center, locality, road, or pincode" />
+            </div>
+            <div id="searchResults" class="list-panel"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Area Density Heatmap</h2>
+            <p class="panel-copy">
+              Treemap intensity is driven by primary locality counts derived from the parsed area field.
+              It highlights where supply piles up, and where the long tail dominates.
+            </p>
+          </div>
+        </div>
+        <div id="localityTreemap" class="chart tall"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Market Fragmentation Analytics</h2>
+            <p class="panel-copy">
+              Fragmentation is computed from locality concentration only. High values indicate that supply
+              is spread across many small pockets rather than locked into a few mega-clusters.
+            </p>
+          </div>
+        </div>
+        <div id="fragmentationGauge" class="chart short"></div>
+        <div id="clusterHistogram" class="chart short"></div>
+      </section>
+    </section>
+
+    <section class="grid two">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Pincode Intelligence</h2>
+            <p class="panel-copy">
+              Pincode concentration is the cleanest zone-level signal in the file and acts as the most stable
+              concentration lens for board review.
+            </p>
+          </div>
+        </div>
+        <div id="pincodeChart" class="chart"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Map Precision & City Coverage</h2>
+            <p class="panel-copy">
+              The file is overwhelmingly single-city. Precision mix shows how much of the map resolves at
+              locality-level versus road, intersection, or pincode fallback.
+            </p>
+          </div>
+        </div>
+        <div id="precisionChart" class="chart short"></div>
+        <div id="cityChart" class="chart short"></div>
+      </section>
+    </section>
+
+    <section class="grid two">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Road Concentration</h2>
+            <p class="panel-copy">
+              Roads are one of the clearest accessibility signals available in the CSV. Repetition here
+              reveals the corridors where wash supply visibly reappears.
+            </p>
+          </div>
+        </div>
+        <div id="roadChart" class="chart"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Landmark Cue Mix</h2>
+            <p class="panel-copy">
+              Landmark phrasing shows how operators describe discoverability on the ground: roadside, beside,
+              near, opposite, or behind known anchors.
+            </p>
+          </div>
+        </div>
+        <div id="landmarkCueChart" class="chart short"></div>
+        <div id="nearbyPlaceChart" class="chart short"></div>
+      </section>
+    </section>
+
+    <section class="panel" style="margin-bottom: 16px;">
+      <div class="section-head">
+        <div>
+          <h2>Landmark & Road Analysis</h2>
+          <p class="panel-copy">
+            Raw rankings below expose the named roads, landmark anchors, and corridor patterns that recur
+            across actual center listings.
+          </p>
+        </div>
+      </div>
+      <div class="table-grid">
+        <div>
+          <div class="table-title">Repeated Road Corridors</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Road</th><th>Centers</th><th>Localities</th><th>Pincodes</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Link Road</td><td>4</td><td>Sheetalpuri, Shukla Nagar, Yadav Colony</td><td>482002</td></tr><tr><td>Mandla - Jabalpur Road</td><td>3</td><td>Bilhari, NH 12 A, Tilhari</td><td>482020, 482021</td></tr><tr><td>Katangi Road</td><td>3</td><td>Dixit Colony, Karmeta</td><td>482002</td></tr><tr><td>Nagpur Road</td><td>3</td><td>LIC, Pisanhari Madiya</td><td>482002, 482003</td></tr><tr><td>Road</td><td>3</td><td>Napier Town, Scheme No 14</td><td>482001, 482002</td></tr><tr><td>Gupteshwar Road</td><td>2</td><td>Gupteshwer Ward, Premnagar</td><td>482001</td></tr><tr><td>Main Road</td><td>2</td><td>5xh7+w5x, A46</td><td>482001, 482003</td></tr><tr><td>Shakti Bhawan Road</td><td>2</td><td>MPSEB Colony, Shankarsh Nagar</td><td>482001, 482008</td></tr><tr><td>Andherdeo Road</td><td>1</td><td>House&#x27; No 119</td><td>482001</td></tr><tr><td>Champa Nagar Main Road</td><td>1</td><td>Ranjhi</td><td>482005</td></tr><tr><td>Damoh - Jabalpur Road</td><td>1</td><td>Madhotal</td><td>482002</td></tr><tr><td>Deendayal Upadhyay Marg</td><td>1</td><td>Vijay Nagar</td><td>482002</td></tr><tr><td>Dixitpura Road</td><td>1</td><td>Cheritaal Bhandari Baba Ke Pass</td><td>482001</td></tr><tr><td>Garha Road</td><td>1</td><td>Yadav Colony</td><td>482002</td></tr><tr><td>Gokalpur Gokalpur Road</td><td>1</td><td>New</td><td>482009</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="table-title">Landmark Mentions</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Landmark</th><th>Count</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Besides Naval Utkarsh</td><td>1</td></tr><tr><td>In Front Of Canara Bank</td><td>1</td></tr><tr><td>Opposite Sukheja Tower</td><td>1</td></tr><tr><td>Near Nexa Service Centre</td><td>1</td></tr><tr><td>In Front Of Sanjivan Hospital Ram</td><td>1</td></tr><tr><td>Beside Rajul Apartment</td><td>1</td></tr><tr><td>In Front Of Punjab Steel</td><td>1</td></tr><tr><td>Near LIC</td><td>1</td></tr><tr><td>Beside Jayanti Complex</td><td>1</td></tr><tr><td>Jain Mandir Ke Pas</td><td>1</td></tr><tr><td>Behind Bhatia Car Alinement</td><td>1</td></tr><tr><td>Next To Royal School</td><td>1</td></tr><tr><td>Behind Sharda Aata Chakki</td><td>1</td></tr><tr><td>In Front Of Chirayu Hospital</td><td>1</td></tr><tr><td>Near Kothari Hospital</td><td>1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-bottom: 16px;">
+      <div class="section-head">
+        <div>
+          <h2>Locality Discovery Engine</h2>
+          <p class="panel-copy">
+            This section separates core clusters from long-tail pockets and corridor-led review zones.
+            Low-supply pockets indicate low observed supply in this file, not modeled demand.
+          </p>
+        </div>
+      </div>
+      <div class="mini-grid" style="margin-bottom: 14px;">
+        
+        <article class="mini-card">
+          <div class="mini-kicker">Core Cluster</div>
+          <h3>Vehicle Fac</h3>
+          <p>6 centers • 5.8% of structured supply</p>
+        </article>
+        
+        <article class="mini-card">
+          <div class="mini-kicker">Core Cluster</div>
+          <h3>Napier Town</h3>
+          <p>5 centers • 4.8% of structured supply</p>
+        </article>
+        
+        <article class="mini-card">
+          <div class="mini-kicker">Core Cluster</div>
+          <h3>Wright Town</h3>
+          <p>4 centers • 3.8% of structured supply</p>
+        </article>
+        
+        <article class="mini-card">
+          <div class="mini-kicker">Core Cluster</div>
+          <h3>Vijay Nagar</h3>
+          <p>4 centers • 3.8% of structured supply</p>
+        </article>
+        
+        <article class="mini-card">
+          <div class="mini-kicker">Core Cluster</div>
+          <h3>Premnagar</h3>
+          <p>3 centers • 2.9% of structured supply</p>
+        </article>
+        
+      </div>
+      <div class="mini-grid" style="margin-bottom: 14px;">
+        
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Sheetalpuri</h3>
+              <p>Deepak Enterprise</p>
+              <div class="micro-meta">482002 • Link Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Shukla Nagar</h3>
+              <p>AUTO ART - Ceramic, PPF and Detailing Studio</p>
+              <div class="micro-meta">482002 • Link Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Dixit Colony</h3>
+              <p>Speed Car Wash</p>
+              <div class="micro-meta">482002 • Katangi Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>LIC</h3>
+              <p>Rao Washing Center</p>
+              <div class="micro-meta">482002 • Nagpur Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Scheme No 14</h3>
+              <p>3M Car Care Studio - Car Detailing, Ceramic Coating and PPF, Vijaynagar</p>
+              <div class="micro-meta">482002 • Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>5wq7+qvg</h3>
+              <p>Namami Car Spa &amp; Wash</p>
+              <div class="micro-meta">482002 • Vijay Nagar Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Baldevbag</h3>
+              <p>Afsar Khan car technicals</p>
+              <div class="micro-meta">482002 • Ukhri Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Kanchan Vihar</h3>
+              <p>HELPINGHANDS CLEANING SERVICES – Car Washing | Water tank cleaning | House Cleaning | Bathroom cleaning | Housekeeping</p>
+              <div class="micro-meta">482002 • Kachnar Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Madhotal</h3>
+              <p>The Cleaning Giants (Car Detailing Center)</p>
+              <div class="micro-meta">482002 • Damoh - Jabalpur Road</div>
+            </article>
+            
+            <article class="mini-card low-supply">
+              <div class="mini-kicker">Low-Supply Pocket</div>
+              <h3>Tulsi Nagar</h3>
+              <p>The Detailing Heroes Jabalpur | Ceramic Coating| Paint Protection Film| Detailing| Paint jobs|</p>
+              <div class="micro-meta">482002 • Shiv Nagar Main Road</div>
+            </article>
+            
+      </div>
+      <div class="mini-grid">
+        
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Link Road</h3>
+              <p>4 centers • 3 localities</p>
+              <div class="micro-meta">Sheetalpuri, Shukla Nagar, Yadav Colony</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Mandla - Jabalpur Road</h3>
+              <p>3 centers • 3 localities</p>
+              <div class="micro-meta">Bilhari, NH 12 A, Tilhari</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Katangi Road</h3>
+              <p>3 centers • 2 localities</p>
+              <div class="micro-meta">Dixit Colony, Karmeta</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Nagpur Road</h3>
+              <p>3 centers • 2 localities</p>
+              <div class="micro-meta">LIC, Pisanhari Madiya</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Road</h3>
+              <p>3 centers • 2 localities</p>
+              <div class="micro-meta">Napier Town, Scheme No 14</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Gupteshwar Road</h3>
+              <p>2 centers • 2 localities</p>
+              <div class="micro-meta">Gupteshwer Ward, Premnagar</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Main Road</h3>
+              <p>2 centers • 2 localities</p>
+              <div class="micro-meta">5xh7+w5x, A46</div>
+            </article>
+            
+            <article class="mini-card corridor">
+              <div class="mini-kicker">Road Corridor</div>
+              <h3>Shakti Bhawan Road</h3>
+              <p>2 centers • 2 localities</p>
+              <div class="micro-meta">MPSEB Colony, Shankarsh Nagar</div>
+            </article>
+            
+      </div>
+    </section>
+
+    <section class="grid equal">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Data Quality & Structure Panel</h2>
+            <p class="panel-copy">
+              Quality metrics reflect parse completeness, address confidence, and map resolution coverage from
+              the current CSV state only.
+            </p>
+          </div>
+        </div>
+        <div id="confidenceChart" class="chart short"></div>
+        <div id="missingFieldChart" class="chart short"></div>
+        <div class="method-list">
+          <div>Business metrics and charts use only the parsed CSV on disk.</div><div>Map coordinates are derived from CSV locality, road, chowk, or pincode strings via geocoding; no revenue, demand, or market estimates are introduced.</div><div>Low-supply pockets indicate low observed supply in this file, not proven customer demand gaps.</div>
+        </div>
+      </section>
+
+      <section class="panel registry-wrap">
+        <div class="section-head">
+          <div>
+            <h2>Center Registry</h2>
+            <p class="panel-copy">
+              The registry below is the same dataset driving the charts and map. Use it as a raw operating ledger.
+            </p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="registryTable">
+            <thead>
+              <tr><th>Center</th><th>Locality</th><th>PIN</th><th>Road</th><th>Score</th><th>Map Precision</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Auto Magnet</td><td>Bilhari</td><td>482020</td><td></td><td>9</td><td>Pincode fallback</td></tr><tr><td>Patel Car Wash and Workshop</td><td>Yadav Colony</td><td>482002</td><td>Garha Road</td><td>10</td><td>Pincode fallback</td></tr><tr><td>STEAM N GLOW CAR SPA ND CAR WASH</td><td>Pisanhari Madiya</td><td>482003</td><td>Nagpur Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Sai Car Care</td><td>Wright Town</td><td>482002</td><td>Prem Mandir Road</td><td>10</td><td>Area exact</td></tr><tr><td>99 car</td><td>Tilhari</td><td>482020</td><td>Mandla - Jabalpur Road</td><td>10</td><td>Area exact</td></tr><tr><td>Dreams Carwash</td><td>Adhartal</td><td>482004</td><td></td><td>8</td><td>Area exact</td></tr><tr><td>Home Car Wash Jabalpur</td><td>Premnagar</td><td>482001</td><td></td><td>9</td><td>Pincode fallback</td></tr><tr><td>AUTOEXPERT( EXPERT CAR WASH AND DETAILING STUDIO)</td><td>Shankarsh Nagar</td><td>482008</td><td>Shakti Bhawan Road</td><td>8</td><td>City fallback</td></tr><tr><td>The Cleaning Giants (Car Detailing Center)</td><td>Madhotal</td><td>482002</td><td>Damoh - Jabalpur Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Gagan car wash &amp; cab service</td><td>APR Colony</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Nandu car washing</td><td>MPSEB Colony</td><td>482001</td><td>Shakti Bhawan Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>WHEELZ &amp; WASH M/s PINPOINT TOOLS &amp; MACHINERY</td><td></td><td>482001</td><td>Shimla Hills Road</td><td>10</td><td>Pincode fallback</td></tr><tr><td>Car Wash Canter</td><td>Premnagar</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>BR01 Custom Wash - Doorstep Car Wash &amp; Interior Cleaning Jabalpur</td><td></td><td></td><td></td><td>1</td><td>Unresolved</td></tr><tr><td>Aradhya car wash</td><td>Vijay Nagar</td><td>482002</td><td>Joy School Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Super Car Wash</td><td>Marhatal</td><td>482002</td><td></td><td>9</td><td>Pincode fallback</td></tr><tr><td>car washing</td><td>Jai Prakash Nagar</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Speed Car Wash</td><td>Dixit Colony</td><td>482002</td><td>Katangi Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Car junction</td><td>Karmeta</td><td>482002</td><td>Katangi Road</td><td>10</td><td>Area exact</td></tr><tr><td>Daksh car Washing</td><td></td><td>482004</td><td>Adhartal Dhani Kutiya Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>mahakal washing center</td><td>Vijay Nagar</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Car Wash Centre</td><td>Anna Moholla</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Himanshu Car Wash</td><td>Suji Mohalla</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>TYRE SHOPPE</td><td></td><td>482002</td><td>Link Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>M.S. Car Denting and Painting</td><td>Wright Town</td><td>482002</td><td>Sardar Chole Bhatoore Wali Street</td><td>10</td><td>Area exact</td></tr><tr><td>Shri Ram Car Washing Center</td><td>Karmeta</td><td>482002</td><td>Katangi Road</td><td>9</td><td>Area exact</td></tr><tr><td>ABHISHEK HONDA BIKE SERVICE AND CAR WASH</td><td>Jagriti Nagar</td><td>482004</td><td>New Ramnagar Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Mekal Service Station-SERVO XPERT</td><td>Vikas Nagar</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Mahadev Washing Center</td><td>Sanjeevani Nagar</td><td>482003</td><td></td><td>10</td><td>Pincode fallback</td></tr><tr><td>HOME WASH - CLEANING SERVICE | CAR WASH | HOME SERVICE | DEEP CLEANING SERVICE</td><td></td><td></td><td></td><td>1</td><td>Unresolved</td></tr><tr><td>Car Space Service Center</td><td>Maharajpur</td><td>482004</td><td>Transport Nagar Bypass</td><td>9</td><td>Area exact</td></tr><tr><td>Sanju car washing and car key remod</td><td>5wrf+m9h</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Afsar Khan car technicals</td><td>Baldevbag</td><td>482002</td><td>Ukhri Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Ashish Car Wash</td><td>New Shobhapur Colony</td><td>482009</td><td></td><td>7</td><td>City fallback</td></tr><tr><td>Aryan Car Washing</td><td>Neta Colony</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Abhishek Car Wash</td><td>Power House</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>JAS WASHING CENTER</td><td>Gupteshwer Ward</td><td>482001</td><td>Gupteshwar Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Steel Fancy Grill</td><td>Noori Nagar</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Sandeep Car Wash</td><td>Vehicle Fac</td><td>482004</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>The Detailing Boys</td><td>Wright Town</td><td>482002</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>Washing Wala Waterless Car Wash</td><td></td><td></td><td></td><td>1</td><td>Unresolved</td></tr><tr><td>Mister car wash jabalpur</td><td>Napier Town</td><td>482001</td><td></td><td>10</td><td>Area exact</td></tr><tr><td>Rao Washing Center</td><td>LIC</td><td>482002</td><td>Nagpur Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Urban Car Rental In Jabalpur</td><td>House&#x27; No 119</td><td>482001</td><td>Andherdeo Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Pathak Service Center</td><td>Ahmad Nagar</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Maruti Suzuki Authorised Service (Yash Vehicles Care)</td><td>Wright Town</td><td>482002</td><td></td><td>8</td><td>Area exact</td></tr><tr><td>MAA NARMADA HOME CLEANING SERVICES</td><td>Sadar</td><td>482001</td><td></td><td>8</td><td>Area exact</td></tr><tr><td>DAZZLE car wash and accessories</td><td>Gate Number 4</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Rhythm Car Decoration</td><td>Napier Town</td><td>482001</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>Sahil Vehicle Washing Centre</td><td>Neta Colony</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Chimni Minerals</td><td>New</td><td>482009</td><td>Gokalpur Gokalpur Road</td><td>8</td><td>City fallback</td></tr><tr><td>Satyam Car Wash</td><td>Patel Nagar</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Ravi Washing Center</td><td>Vehicle Fac</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Rohit Car Wash</td><td>Anna Mohalla</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Ashok Car Wash</td><td>Vehicle Fac</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>manoj car wash</td><td>Vehicle Fac</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>mahendra car wash</td><td>Vehicle Fac</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>vinod car wash</td><td>Vehicle Fac</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Manish Car Wash</td><td>Maharajpur</td><td>482004</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>Seelam Car Washing</td><td>Seelam Car Washing Dada Ki Bagiya</td><td>482004</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Deepak Enterprise</td><td>Sheetalpuri</td><td>482002</td><td>Link Road</td><td>10</td><td>Pincode fallback</td></tr><tr><td>The Detailing Xperts Jabalpur | Ceramic Coating | Garware Paint Protection Film</td><td>Gole Bazar</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>The Detailing Mafia Jabalpur | Car Detailing | Paint Protection Film | Ceramic &amp; Graphene Coating</td><td>Katanga</td><td>482001</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>Sweep wash</td><td>Bilhari</td><td>482021</td><td>Mandla - Jabalpur Road</td><td>9</td><td>City fallback</td></tr><tr><td>NIRANKAR AUTOMOTIVE CAR WASH &amp; TRAVELS (Multi Brand Car Cares And Detailing Workshop)</td><td>Tilhari</td><td>482020</td><td></td><td>10</td><td>Area exact</td></tr><tr><td>3M Car Care Studio - Car Detailing, Ceramic Coating and PPF, Vijaynagar</td><td>Scheme No 14</td><td>482002</td><td>Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Car Studioz</td><td>Napier Town</td><td>482001</td><td>Road</td><td>10</td><td>Area exact</td></tr><tr><td>The Detailing Heroes Jabalpur | Ceramic Coating| Paint Protection Film| Detailing| Paint jobs|</td><td>Tulsi Nagar</td><td>482002</td><td>Shiv Nagar Main Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>AUTO ART - Ceramic, PPF and Detailing Studio</td><td>Shukla Nagar</td><td>482002</td><td>Link Road</td><td>10</td><td>Pincode fallback</td></tr><tr><td>HIGH DEFINITION WASHING STUDIO</td><td>Yadav Colony</td><td>482002</td><td>Link Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>The Junk Garage Car Wash</td><td>Sheetlamai</td><td>482002</td><td></td><td>9</td><td>Pincode fallback</td></tr><tr><td>Easydays Premium Carwash</td><td>Napier Town</td><td>482001</td><td>Road</td><td>10</td><td>Area exact</td></tr><tr><td>Sunil Washing and Servicing Centre</td><td>5xvg+8j7</td><td>482009</td><td></td><td>7</td><td>City fallback</td></tr><tr><td>Sarika Cleaning |Steam Car washing | Car wash | Door step Car wash |Steam Bros|Watertank Cleaning |Sofa Cleaning</td><td>Cheritaal Bhandari Baba Ke Pass</td><td>482001</td><td>Dixitpura Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Ajju Car Washing Center | Bike Washing | Servicing | Car Washing Point In Jabalpur</td><td>Gcf Estate</td><td>482011</td><td></td><td>8</td><td>City fallback</td></tr><tr><td>Best ceramic coating in jabalpur Zoom clean car washing,detailing &amp; ceramic coating</td><td>6v9x+c34</td><td>482002</td><td></td><td>9</td><td>Pincode fallback</td></tr><tr><td>Namami Car Spa &amp; Wash</td><td>5wq7+qvg</td><td>482002</td><td>Vijay Nagar Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Gloss Gods detailing | ceramic coating | Paint protection film| Wraps| car detailing | Mods | PPF</td><td>A46</td><td>482003</td><td>Main Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Singh Washing Centre</td><td>Madan Mahal</td><td>482001</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>The Detailing Xperts Jabalpur |Vijay Nagar | Ceramic Coating | Paint Protection Film</td><td>Scheme No 41</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>HELPINGHANDS CLEANING SERVICES – Car Washing | Water tank cleaning | House Cleaning | Bathroom cleaning | Housekeeping</td><td>Kanchan Vihar</td><td>482002</td><td>Kachnar Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Shiv sakti wasing center</td><td>Vijay Nagar</td><td>482002</td><td>Deendayal Upadhyay Marg</td><td>9</td><td>Area exact</td></tr><tr><td>Vijay bike care</td><td>4wrc+pr9</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Castrol Auto Service - No 1 Car Home</td><td>Scheme No 41</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>One Call Car washing centr</td><td>5v2j+w5p</td><td>482003</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Shakti bhawan road shree ram auto garage</td><td>4wrc+x62</td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Patel automobile</td><td>5wq7+jrj</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Impact Wash</td><td>5wf8+h32</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Patel automobile car accessories</td><td>Vikas Nagar</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Shree Balaji Car Accessories jabalpur</td><td>Dwarka Sweets</td><td>482002</td><td></td><td>10</td><td>Pincode fallback</td></tr><tr><td>Unique Car Decorz</td><td>Napier Town</td><td>482001</td><td>Shastri Bridge</td><td>10</td><td>Area exact</td></tr><tr><td>Mahindra First Choice Services - 4 Wheeler -SHRI WARDHMAN MOTOWORKS</td><td></td><td>482002</td><td>Nagpur Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Maruti Suzuki ARENA (Standard Motocorp, Jabalpur, Napier Town)</td><td>Mahal</td><td>482001</td><td></td><td>10</td><td>Area exact</td></tr><tr><td>Sharad Cleaning home service Jabalpur mp</td><td></td><td>482001</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>IndianOil</td><td>NH 12 A</td><td>482021</td><td>Mandla - Jabalpur Road</td><td>9</td><td>City fallback</td></tr><tr><td>Amit Travels-Car Rental In Jabalpur</td><td>Niranjan Vihar</td><td>482001</td><td>University Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>Maruti Suzuki Service (Standard Auto Agencies)</td><td>Deendayal Check</td><td>482002</td><td></td><td>7</td><td>Pincode fallback</td></tr><tr><td>Anmol Hyundai Service</td><td>Compound</td><td>482001</td><td></td><td>9</td><td>Area exact</td></tr><tr><td>Maruti Suzuki True Value (Standard Auto Agencies, Jabalpur, Vijay Nagar)</td><td>Vijay Nagar</td><td>482002</td><td>MR-4 Road</td><td>10</td><td>Area exact</td></tr><tr><td>Car Wash N Detailing</td><td>Pawan Sthapak</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Shakti Washing Center</td><td>5xh7+w5x</td><td>482001</td><td>Main Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Samar spare parts and servicing centre</td><td>5wqr+9jf</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>Home Wash</td><td>Ranjhi</td><td>482005</td><td>Champa Nagar Main Road</td><td>9</td><td>Pincode fallback</td></tr><tr><td>Bosch Car Service - Matador Centre</td><td>Maheshpur</td><td>482002</td><td></td><td>10</td><td>Area exact</td></tr><tr><td>Kamla Gupta hospital</td><td>Premnagar</td><td>482001</td><td>Gupteshwar Road</td><td>8</td><td>Pincode fallback</td></tr><tr><td>SDM service</td><td>Ganji Nagar</td><td>482002</td><td></td><td>8</td><td>Pincode fallback</td></tr><tr><td>A mechanic master</td><td></td><td>482002</td><td>ISBT To Green City Road</td><td>8</td><td>Pincode fallback</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="footer-note">
+          Ground rule: the dashboard does not estimate revenue, demand, bookings, or conversion.
+          It visualizes only what the parsed location file actually contains.
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script id="dashboard-data" type="application/json">{"dataset": {"rows_total": 107, "rows_spatial": 104, "rows_mapped": 104, "rows_unresolved": 3}, "summary": {"total_centers": 107, "total_cities": 1, "unique_areas": 83, "unique_pincodes": 10, "top_concentration_zone": "482002", "top_concentration_zone_count": 47, "top_repeated_locality": "Napier Town", "top_repeated_locality_count": 5, "fragmentation_index": 99.3, "single_center_localities": 60, "multi_cluster_localities": 5, "top3_pincode_share": 85.6, "top5_primary_share": 21.2}, "charts": {"city_distribution": [{"name": "Jabalpur", "value": 104}], "top_exact_areas": [{"name": "Napier Town", "value": 5}, {"name": "Wright Town", "value": 4}, {"name": "Vehicle Fac, Maitri Nagar, Kanchanpur", "value": 3}, {"name": "Yadav Colony", "value": 2}, {"name": "Tilhari", "value": 2}, {"name": "Vijay Nagar, Raksha", "value": 2}, {"name": "Karmeta", "value": 2}, {"name": "Maharajpur", "value": 2}, {"name": "Vijay Nagar", "value": 2}, {"name": "Bilhari, Pipariya", "value": 1}, {"name": "Pisanhari Madiya", "value": 1}, {"name": "Nagar, Adhartal", "value": 1}], "top_primary_localities": [{"name": "Vehicle Fac", "value": 6}, {"name": "Napier Town", "value": 5}, {"name": "Wright Town", "value": 4}, {"name": "Vijay Nagar", "value": 4}, {"name": "Premnagar", "value": 3}, {"name": "Bilhari", "value": 2}, {"name": "Yadav Colony", "value": 2}, {"name": "Tilhari", "value": 2}, {"name": "Karmeta", "value": 2}, {"name": "Vikas Nagar", "value": 2}, {"name": "Maharajpur", "value": 2}, {"name": "Neta Colony", "value": 2}, {"name": "Scheme No 41", "value": 2}, {"name": "Pisanhari Madiya", "value": 1}, {"name": "Adhartal", "value": 1}, {"name": "Shankarsh Nagar", "value": 1}, {"name": "Madhotal", "value": 1}, {"name": "APR Colony", "value": 1}, {"name": "MPSEB Colony", "value": 1}, {"name": "Marhatal", "value": 1}], "pincodes": [{"name": "482002", "value": 47}, {"name": "482001", "value": 26}, {"name": "482004", "value": 16}, {"name": "482003", "value": 4}, {"name": "482020", "value": 3}, {"name": "482009", "value": 3}, {"name": "482021", "value": 2}, {"name": "482008", "value": 1}, {"name": "482011", "value": 1}, {"name": "482005", "value": 1}], "roads": [{"name": "Link Road", "value": 4}, {"name": "Nagpur Road", "value": 3}, {"name": "Mandla - Jabalpur Road", "value": 3}, {"name": "Katangi Road", "value": 3}, {"name": "Road", "value": 3}, {"name": "Shakti Bhawan Road", "value": 2}, {"name": "Gupteshwar Road", "value": 2}, {"name": "Main Road", "value": 2}, {"name": "Garha Road", "value": 1}, {"name": "Prem Mandir Road", "value": 1}, {"name": "Damoh - Jabalpur Road", "value": 1}, {"name": "Shimla Hills Road", "value": 1}], "landmark_cues": [{"name": "Beside", "value": 7}, {"name": "In Front Of", "value": 7}, {"name": "Near", "value": 7}, {"name": "Opposite", "value": 4}, {"name": "Behind", "value": 3}, {"name": "Other", "value": 2}, {"name": "Ke Pas", "value": 1}, {"name": "Next To", "value": 1}], "confidence": [{"name": "1", "value": 3}, {"name": "7", "value": 29}, {"name": "8", "value": 30}, {"name": "9", "value": 27}, {"name": "10", "value": 18}], "cluster_histogram": [{"name": "1", "value": 60}, {"name": "2", "value": 8}, {"name": "3", "value": 1}, {"name": "4", "value": 2}, {"name": "5", "value": 1}, {"name": "6", "value": 1}], "missing_fields": [{"name": "City", "value": 3}, {"name": "Area", "value": 9}, {"name": "Road", "value": 63}, {"name": "Landmark", "value": 75}, {"name": "Nearby Place", "value": 87}, {"name": "Pincode", "value": 3}, {"name": "Cleaned Address", "value": 3}], "precision_mix": [{"name": "pincode", "value": 73}, {"name": "area_exact", "value": 24}, {"name": "city", "value": 7}, {"name": "unresolved", "value": 3}], "nearby_places": [{"name": "Old Bus Stand", "value": 2}, {"name": "Opposite Anantara Residential Resort", "value": 1}, {"name": "Bansal Blood Bank", "value": 1}, {"name": "Post Office", "value": 1}, {"name": "Food Corporation Of India", "value": 1}, {"name": "Auto Art Madan Mahal Station", "value": 1}, {"name": "Mahadev Washing Center", "value": 1}, {"name": "Jain Tower", "value": 1}, {"name": "Civic Center", "value": 1}, {"name": "Housing Board Housing Board", "value": 1}]}, "tables": {"roads": [{"road": "Link Road", "centers": 4, "localities": ["Sheetalpuri", "Shukla Nagar", "Yadav Colony"], "locality_count": 3, "pincodes": ["482002"], "locality_preview": "Sheetalpuri, Shukla Nagar, Yadav Colony", "pincode_preview": "482002"}, {"road": "Mandla - Jabalpur Road", "centers": 3, "localities": ["Bilhari", "NH 12 A", "Tilhari"], "locality_count": 3, "pincodes": ["482020", "482021"], "locality_preview": "Bilhari, NH 12 A, Tilhari", "pincode_preview": "482020, 482021"}, {"road": "Katangi Road", "centers": 3, "localities": ["Dixit Colony", "Karmeta"], "locality_count": 2, "pincodes": ["482002"], "locality_preview": "Dixit Colony, Karmeta", "pincode_preview": "482002"}, {"road": "Nagpur Road", "centers": 3, "localities": ["LIC", "Pisanhari Madiya"], "locality_count": 2, "pincodes": ["482002", "482003"], "locality_preview": "LIC, Pisanhari Madiya", "pincode_preview": "482002, 482003"}, {"road": "Road", "centers": 3, "localities": ["Napier Town", "Scheme No 14"], "locality_count": 2, "pincodes": ["482001", "482002"], "locality_preview": "Napier Town, Scheme No 14", "pincode_preview": "482001, 482002"}, {"road": "Gupteshwar Road", "centers": 2, "localities": ["Gupteshwer Ward", "Premnagar"], "locality_count": 2, "pincodes": ["482001"], "locality_preview": "Gupteshwer Ward, Premnagar", "pincode_preview": "482001"}, {"road": "Main Road", "centers": 2, "localities": ["5xh7+w5x", "A46"], "locality_count": 2, "pincodes": ["482001", "482003"], "locality_preview": "5xh7+w5x, A46", "pincode_preview": "482001, 482003"}, {"road": "Shakti Bhawan Road", "centers": 2, "localities": ["MPSEB Colony", "Shankarsh Nagar"], "locality_count": 2, "pincodes": ["482001", "482008"], "locality_preview": "MPSEB Colony, Shankarsh Nagar", "pincode_preview": "482001, 482008"}, {"road": "Andherdeo Road", "centers": 1, "localities": ["House' No 119"], "locality_count": 1, "pincodes": ["482001"], "locality_preview": "House' No 119", "pincode_preview": "482001"}, {"road": "Champa Nagar Main Road", "centers": 1, "localities": ["Ranjhi"], "locality_count": 1, "pincodes": ["482005"], "locality_preview": "Ranjhi", "pincode_preview": "482005"}, {"road": "Damoh - Jabalpur Road", "centers": 1, "localities": ["Madhotal"], "locality_count": 1, "pincodes": ["482002"], "locality_preview": "Madhotal", "pincode_preview": "482002"}, {"road": "Deendayal Upadhyay Marg", "centers": 1, "localities": ["Vijay Nagar"], "locality_count": 1, "pincodes": ["482002"], "locality_preview": "Vijay Nagar", "pincode_preview": "482002"}, {"road": "Dixitpura Road", "centers": 1, "localities": ["Cheritaal Bhandari Baba Ke Pass"], "locality_count": 1, "pincodes": ["482001"], "locality_preview": "Cheritaal Bhandari Baba Ke Pass", "pincode_preview": "482001"}, {"road": "Garha Road", "centers": 1, "localities": ["Yadav Colony"], "locality_count": 1, "pincodes": ["482002"], "locality_preview": "Yadav Colony", "pincode_preview": "482002"}, {"road": "Gokalpur Gokalpur Road", "centers": 1, "localities": ["New"], "locality_count": 1, "pincodes": ["482009"], "locality_preview": "New", "pincode_preview": "482009"}], "landmarks": [{"landmark": "Besides Naval Utkarsh", "count": 1}, {"landmark": "In Front Of Canara Bank", "count": 1}, {"landmark": "Opposite Sukheja Tower", "count": 1}, {"landmark": "Near Nexa Service Centre", "count": 1}, {"landmark": "In Front Of Sanjivan Hospital Ram", "count": 1}, {"landmark": "Beside Rajul Apartment", "count": 1}, {"landmark": "In Front Of Punjab Steel", "count": 1}, {"landmark": "Near LIC", "count": 1}, {"landmark": "Beside Jayanti Complex", "count": 1}, {"landmark": "Jain Mandir Ke Pas", "count": 1}, {"landmark": "Behind Bhatia Car Alinement", "count": 1}, {"landmark": "Next To Royal School", "count": 1}, {"landmark": "Behind Sharda Aata Chakki", "count": 1}, {"landmark": "In Front Of Chirayu Hospital", "count": 1}, {"landmark": "Near Kothari Hospital", "count": 1}], "registry": [{"business_name": "Auto Magnet", "primary_locality": "Bilhari", "pincode": "482020", "road_name": "", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Besides Naval Utkarsh, Opposite Anantara Residential Resort, Bilhari, Pipariya, Jabalpur, Madhya Pradesh, 482020, India"}, {"business_name": "Patel Car Wash and Workshop", "primary_locality": "Yadav Colony", "pincode": "482002", "road_name": "Garha Road", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "In Front Of Canara Bank, Garha Road, Chowk, Yadav Colony, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "STEAM N GLOW CAR SPA ND CAR WASH", "primary_locality": "Pisanhari Madiya", "pincode": "482003", "road_name": "Nagpur Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Nagpur Road, Pisanhari Madiya, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Sai Car Care", "primary_locality": "Wright Town", "pincode": "482002", "road_name": "Prem Mandir Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Opposite Sukheja Tower, Bansal Blood Bank, Prem Mandir Road, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "99 car", "primary_locality": "Tilhari", "pincode": "482020", "road_name": "Mandla - Jabalpur Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Near Nexa Service Centre, Mandla - Jabalpur Road, Tilhari, Jabalpur, Madhya Pradesh, 482020, India"}, {"business_name": "Dreams Carwash", "primary_locality": "Adhartal", "pincode": "482004", "road_name": "", "confidence": 8, "precision_label": "Area exact", "cleaned_address": "In Front Of Sanjivan Hospital Ram, Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Home Car Wash Jabalpur", "primary_locality": "Premnagar", "pincode": "482001", "road_name": "", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Beside Rajul Apartment, Post Office, Premnagar, Hathital, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "AUTOEXPERT( EXPERT CAR WASH AND DETAILING STUDIO)", "primary_locality": "Shankarsh Nagar", "pincode": "482008", "road_name": "Shakti Bhawan Road", "confidence": 8, "precision_label": "City fallback", "cleaned_address": "Shakti Bhawan Road, Shankarsh Nagar, Rampur, Jabalpur, Madhya Pradesh, 482008, India"}, {"business_name": "The Cleaning Giants (Car Detailing Center)", "primary_locality": "Madhotal", "pincode": "482002", "road_name": "Damoh - Jabalpur Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "In Front Of Punjab Steel, Damoh - Jabalpur Road, Madhotal, Chungi Naka, Karmeta, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Gagan car wash & cab service", "primary_locality": "APR Colony", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Apr Colony, Katanga, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Nandu car washing", "primary_locality": "MPSEB Colony", "pincode": "482001", "road_name": "Shakti Bhawan Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Food Corporation Of India, Shakti Bhawan Road, MPSEB Colony, Rampur, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "WHEELZ & WASH M/s PINPOINT TOOLS & MACHINERY", "primary_locality": "", "pincode": "482001", "road_name": "Shimla Hills Road", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "Near LIC, Shimla Hills Road, Sharda Chowk, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Car Wash Canter", "primary_locality": "Premnagar", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "BR01 Custom Wash - Doorstep Car Wash & Interior Cleaning Jabalpur", "primary_locality": "", "pincode": "", "road_name": "", "confidence": 1, "precision_label": "Unresolved", "cleaned_address": ""}, {"business_name": "Aradhya car wash", "primary_locality": "Vijay Nagar", "pincode": "482002", "road_name": "Joy School Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Joy School Road, Ghadhi Chowk, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Super Car Wash", "primary_locality": "Marhatal", "pincode": "482002", "road_name": "", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Beside Jayanti Complex, Marhatal, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "car washing", "primary_locality": "Jai Prakash Nagar", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Jai Prakash Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Speed Car Wash", "primary_locality": "Dixit Colony", "pincode": "482002", "road_name": "Katangi Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Katangi Road, Dixit Colony, Rajeev Gandhi Nagar, Karmeta, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Car junction", "primary_locality": "Karmeta", "pincode": "482002", "road_name": "Katangi Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Jain Mandir Ke Pas, Katangi Road, Karmeta, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Daksh car Washing", "primary_locality": "", "pincode": "482004", "road_name": "Adhartal Dhani Kutiya Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Adhartal Dhani Kutiya Road, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "mahakal washing center", "primary_locality": "Vijay Nagar", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Car Wash Centre", "primary_locality": "Anna Moholla", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Anna Moholla, Ratan Nagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Himanshu Car Wash", "primary_locality": "Suji Mohalla", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Suji Mohalla, Gohalpur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "TYRE SHOPPE", "primary_locality": "", "pincode": "482002", "road_name": "Link Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Auto Art Madan Mahal Station, Link Road, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "M.S. Car Denting and Painting", "primary_locality": "Wright Town", "pincode": "482002", "road_name": "Sardar Chole Bhatoore Wali Street", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Behind Bhatia Car Alinement, Old Bus Stand, Sardar Chole Bhatoore Wali Street, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Shri Ram Car Washing Center", "primary_locality": "Karmeta", "pincode": "482002", "road_name": "Katangi Road", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Katangi Road, Karmeta, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "ABHISHEK HONDA BIKE SERVICE AND CAR WASH", "primary_locality": "Jagriti Nagar", "pincode": "482004", "road_name": "New Ramnagar Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "New Ramnagar Road, Jagriti Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Mekal Service Station-SERVO XPERT", "primary_locality": "Vikas Nagar", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Vikas Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Mahadev Washing Center", "primary_locality": "Sanjeevani Nagar", "pincode": "482003", "road_name": "", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "Next To Royal School, Mahadev Washing Center, Sanjeevani Nagar, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "HOME WASH - CLEANING SERVICE | CAR WASH | HOME SERVICE | DEEP CLEANING SERVICE", "primary_locality": "", "pincode": "", "road_name": "", "confidence": 1, "precision_label": "Unresolved", "cleaned_address": ""}, {"business_name": "Car Space Service Center", "primary_locality": "Maharajpur", "pincode": "482004", "road_name": "Transport Nagar Bypass", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Transport Nagar Bypass, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Sanju car washing and car key remod", "primary_locality": "5wrf+m9h", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "5wrf+m9h, Trimurti Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Afsar Khan car technicals", "primary_locality": "Baldevbag", "pincode": "482002", "road_name": "Ukhri Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Ukhri Road, Baldevbag, Janki Nagar, New Adaresh Colony, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Ashish Car Wash", "primary_locality": "New Shobhapur Colony", "pincode": "482009", "road_name": "", "confidence": 7, "precision_label": "City fallback", "cleaned_address": "New Shobhapur Colony, Shobhapur, Jabalpur, Madhya Pradesh, 482009, India"}, {"business_name": "Aryan Car Washing", "primary_locality": "Neta Colony", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Neta Colony, Adhartal, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Abhishek Car Wash", "primary_locality": "Power House", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Power House, Gcf, Shobhapur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "JAS WASHING CENTER", "primary_locality": "Gupteshwer Ward", "pincode": "482001", "road_name": "Gupteshwar Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Gupteshwar Road, Gupteshwer Ward, Premnagar, Hathital, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Steel Fancy Grill", "primary_locality": "Noori Nagar", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Noori Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Sandeep Car Wash", "primary_locality": "Vehicle Fac", "pincode": "482004", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Behind Sharda Aata Chakki, Vehicle Fac, New Kanchanpur, Bhatta Mohalla, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "The Detailing Boys", "primary_locality": "Wright Town", "pincode": "482002", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "In Front Of Chirayu Hospital, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Washing Wala Waterless Car Wash", "primary_locality": "", "pincode": "", "road_name": "", "confidence": 1, "precision_label": "Unresolved", "cleaned_address": ""}, {"business_name": "Mister car wash jabalpur", "primary_locality": "Napier Town", "pincode": "482001", "road_name": "", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Jain Tower, Russel Chowk, Napier Town, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Rao Washing Center", "primary_locality": "LIC", "pincode": "482002", "road_name": "Nagpur Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Nagpur Road, LIC, Maheshpur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Urban Car Rental In Jabalpur", "primary_locality": "House' No 119", "pincode": "482001", "road_name": "Andherdeo Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Andherdeo Road, House' No 119, Jama Masjid Compound, Andherdeo, Ganjipura, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Pathak Service Center", "primary_locality": "Ahmad Nagar", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Ahmad Nagar, Gohalpur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Maruti Suzuki Authorised Service (Yash Vehicles Care)", "primary_locality": "Wright Town", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Area exact", "cleaned_address": "Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "MAA NARMADA HOME CLEANING SERVICES", "primary_locality": "Sadar", "pincode": "482001", "road_name": "", "confidence": 8, "precision_label": "Area exact", "cleaned_address": "Sadar, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "DAZZLE car wash and accessories", "primary_locality": "Gate Number 4", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Near Kothari Hospital, Gate Number 4, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Rhythm Car Decoration", "primary_locality": "Napier Town", "pincode": "482001", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Civic Center, Napier Town, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sahil Vehicle Washing Centre", "primary_locality": "Neta Colony", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Neta Colony, Mansarovar Colony, Adhartal, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Chimni Minerals", "primary_locality": "New", "pincode": "482009", "road_name": "Gokalpur Gokalpur Road", "confidence": 8, "precision_label": "City fallback", "cleaned_address": "Gokalpur Gokalpur Road, New, Gokulpur, Jabalpur, Madhya Pradesh, 482009, India"}, {"business_name": "Satyam Car Wash", "primary_locality": "Patel Nagar", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Patel Nagar, Maitri Nagar, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Ravi Washing Center", "primary_locality": "Vehicle Fac", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vehicle Fac, Badhaiya Mohalla, Alok Nagar, Tapti Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Rohit Car Wash", "primary_locality": "Anna Mohalla", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Anna Mohalla, Gurudev Colony, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Ashok Car Wash", "primary_locality": "Vehicle Fac", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vehicle Fac, New Kanchanpur, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "manoj car wash", "primary_locality": "Vehicle Fac", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "mahendra car wash", "primary_locality": "Vehicle Fac", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "vinod car wash", "primary_locality": "Vehicle Fac", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Manish Car Wash", "primary_locality": "Maharajpur", "pincode": "482004", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Housing Board Housing Board, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Seelam Car Washing", "primary_locality": "Seelam Car Washing Dada Ki Bagiya", "pincode": "482004", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Seelam Car Washing Dada Ki Bagiya, Khirkiya Khurd, Jabalpur, Madhya Pradesh, 482004, India"}, {"business_name": "Deepak Enterprise", "primary_locality": "Sheetalpuri", "pincode": "482002", "road_name": "Link Road", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "Link Road, Aaga Chowk, Sheetalpuri, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "The Detailing Xperts Jabalpur | Ceramic Coating | Garware Paint Protection Film", "primary_locality": "Gole Bazar", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "In Front Of Athlete Gym, Gole Bazar, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "The Detailing Mafia Jabalpur | Car Detailing | Paint Protection Film | Ceramic & Graphene Coating", "primary_locality": "Katanga", "pincode": "482001", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Bandariya Tiraha, Katanga, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sweep wash", "primary_locality": "Bilhari", "pincode": "482021", "road_name": "Mandla - Jabalpur Road", "confidence": 9, "precision_label": "City fallback", "cleaned_address": "Mandla - Jabalpur Road, Bilhari, Jabalpur, Madhya Pradesh, 482021, India"}, {"business_name": "NIRANKAR AUTOMOTIVE CAR WASH & TRAVELS (Multi Brand Car Cares And Detailing Workshop)", "primary_locality": "Tilhari", "pincode": "482020", "road_name": "", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Beside Mohit Apartment, Shivar Garden, Tilhari, Jabalpur, Madhya Pradesh, 482020, India"}, {"business_name": "3M Car Care Studio - Car Detailing, Ceramic Coating and PPF, Vijaynagar", "primary_locality": "Scheme No 14", "pincode": "482002", "road_name": "Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Road, SBI Chowk, Scheme No 14, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Car Studioz", "primary_locality": "Napier Town", "pincode": "482001", "road_name": "Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Opposite Dr Sachin Luthra, Road, Napier Town, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "The Detailing Heroes Jabalpur | Ceramic Coating| Paint Protection Film| Detailing| Paint jobs|", "primary_locality": "Tulsi Nagar", "pincode": "482002", "road_name": "Shiv Nagar Main Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Opposite Dr Maurya Clinic, Shiv Nagar Main Road, Tulsi Nagar, Sarvodaya Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "AUTO ART - Ceramic, PPF and Detailing Studio", "primary_locality": "Shukla Nagar", "pincode": "482002", "road_name": "Link Road", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "Near Chandi Mata Mandir, Madan Mahal Station, Link Road, Shukla Nagar, Ranipur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "HIGH DEFINITION WASHING STUDIO", "primary_locality": "Yadav Colony", "pincode": "482002", "road_name": "Link Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Link Road, Yadav Colony, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "The Junk Garage Car Wash", "primary_locality": "Sheetlamai", "pincode": "482002", "road_name": "", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Beside Canara Bank, Chowk, Sheetlamai, Ghamapur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Easydays Premium Carwash", "primary_locality": "Napier Town", "pincode": "482001", "road_name": "Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Near Bhavartal Garden, Road, Napier Town, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sunil Washing and Servicing Centre", "primary_locality": "5xvg+8j7", "pincode": "482009", "road_name": "", "confidence": 7, "precision_label": "City fallback", "cleaned_address": "5xvg+8j7, Sector 2, Shobhapur, Vehicle Fac Jabalpur, Jabalpur, Madhya Pradesh, 482009, India"}, {"business_name": "Sarika Cleaning |Steam Car washing | Car wash | Door step Car wash |Steam Bros|Watertank Cleaning |Sofa Cleaning", "primary_locality": "Cheritaal Bhandari Baba Ke Pass", "pincode": "482001", "road_name": "Dixitpura Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Dixitpura Road, Cheritaal Bhandari Baba Ke Pass, Rajendra Prasad Ward, Uprainganj, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Ajju Car Washing Center | Bike Washing | Servicing | Car Washing Point In Jabalpur", "primary_locality": "Gcf Estate", "pincode": "482011", "road_name": "", "confidence": 8, "precision_label": "City fallback", "cleaned_address": "Beside Panhera Petrol Pump, Gcf Estate, Gokulpur, Jabalpur, Madhya Pradesh, 482011, India"}, {"business_name": "Best ceramic coating in jabalpur Zoom clean car washing,detailing & ceramic coating", "primary_locality": "6v9x+c34", "pincode": "482002", "road_name": "", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Katangi Bypass Road Near Star City Gate, 6v9x+c34, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Namami Car Spa & Wash", "primary_locality": "5wq7+qvg", "pincode": "482002", "road_name": "Vijay Nagar Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Vijay Nagar Road, 5wq7+qvg, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Gloss Gods detailing | ceramic coating | Paint protection film| Wraps| car detailing | Mods | PPF", "primary_locality": "A46", "pincode": "482003", "road_name": "Main Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Main Road, A46, Dhanvantari Nagar, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Singh Washing Centre", "primary_locality": "Madan Mahal", "pincode": "482001", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Singh Washing Centre, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "The Detailing Xperts Jabalpur |Vijay Nagar | Ceramic Coating | Paint Protection Film", "primary_locality": "Scheme No 41", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Scheme No 41, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "HELPINGHANDS CLEANING SERVICES – Car Washing | Water tank cleaning | House Cleaning | Bathroom cleaning | Housekeeping", "primary_locality": "Kanchan Vihar", "pincode": "482002", "road_name": "Kachnar Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Kachnar Road, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Shiv sakti wasing center", "primary_locality": "Vijay Nagar", "pincode": "482002", "road_name": "Deendayal Upadhyay Marg", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "Deendayal Upadhyay Marg, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Vijay bike care", "primary_locality": "4wrc+pr9", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "4wrc+pr9, Gupteshwar, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Castrol Auto Service - No 1 Car Home", "primary_locality": "Scheme No 41", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Ekta Chowk, Scheme No 41, Swami Vivekanand Ward, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "One Call Car washing centr", "primary_locality": "5v2j+w5p", "pincode": "482003", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Medical College Colony, 5v2j+w5p, Doctors Colony, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Shakti bhawan road shree ram auto garage", "primary_locality": "4wrc+x62", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "4wrc+x62, Gupteshwar, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Patel automobile", "primary_locality": "5wq7+jrj", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "5wq7+jrj, Vikas Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Impact Wash", "primary_locality": "5wf8+h32", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Hanuman Mandir Gali, 5wf8+h32, Harshit Nagar, Daya Nagar, Yadav Colony, New Adaresh Colony, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Patel automobile car accessories", "primary_locality": "Vikas Nagar", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Vikas Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Shree Balaji Car Accessories jabalpur", "primary_locality": "Dwarka Sweets", "pincode": "482002", "road_name": "", "confidence": 10, "precision_label": "Pincode fallback", "cleaned_address": "Narendra Enterprise Kay Samnay, Old Bus Stand, Teenpatti Chok, Dwarka Sweets, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Unique Car Decorz", "primary_locality": "Napier Town", "pincode": "482001", "road_name": "Shastri Bridge", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Opposite Diesel Service, Marble Complex, Shastri Bridge, Napier Town, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Mahindra First Choice Services - 4 Wheeler -SHRI WARDHMAN MOTOWORKS", "primary_locality": "", "pincode": "482002", "road_name": "Nagpur Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Beside Jio-Bp, Nagpur Road, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Maruti Suzuki ARENA (Standard Motocorp, Jabalpur, Napier Town)", "primary_locality": "Mahal", "pincode": "482001", "road_name": "", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Near Bhanwartal, Garden, Mahal, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sharad Cleaning home service Jabalpur mp", "primary_locality": "", "pincode": "482001", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "IndianOil", "primary_locality": "NH 12 A", "pincode": "482021", "road_name": "Mandla - Jabalpur Road", "confidence": 9, "precision_label": "City fallback", "cleaned_address": "Mandla - Jabalpur Road, Gaur Tiraha, NH 12 A, Saliwara, Jabalpur, Madhya Pradesh, 482021, India"}, {"business_name": "Amit Travels-Car Rental In Jabalpur", "primary_locality": "Niranjan Vihar", "pincode": "482001", "road_name": "University Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "University Road, Niranjan Vihar, South Civil Lines, Pachpedi, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Maruti Suzuki Service (Standard Auto Agencies)", "primary_locality": "Deendayal Check", "pincode": "482002", "road_name": "", "confidence": 7, "precision_label": "Pincode fallback", "cleaned_address": "Deendayal Check, Damoh Naka, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Anmol Hyundai Service", "primary_locality": "Compound", "pincode": "482001", "road_name": "", "confidence": 9, "precision_label": "Area exact", "cleaned_address": "In Front Of MPEB Office Mission, Compound, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Maruti Suzuki True Value (Standard Auto Agencies, Jabalpur, Vijay Nagar)", "primary_locality": "Vijay Nagar", "pincode": "482002", "road_name": "MR-4 Road", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "In Front Of Water Tank, Mr-4 Road, Ukhari Square, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Car Wash N Detailing", "primary_locality": "Pawan Sthapak", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Jan Jyoti Hospital, Pawan Sthapak, Wright Town, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Shakti Washing Center", "primary_locality": "5xh7+w5x", "pincode": "482001", "road_name": "Main Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Near Mathura Ustad Vyam Shala, Main Road, 5xh7+w5x, Chungi Chowki, Kanchghar, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Samar spare parts and servicing centre", "primary_locality": "5wqr+9jf", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Raddi Chowk, 5wqr+9jf, Adhartal, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Home Wash", "primary_locality": "Ranjhi", "pincode": "482005", "road_name": "Champa Nagar Main Road", "confidence": 9, "precision_label": "Pincode fallback", "cleaned_address": "Tower, Champa Nagar Main Road, Ranjhi, Manegaon, Jabalpur, Madhya Pradesh, 482005, India"}, {"business_name": "Bosch Car Service - Matador Centre", "primary_locality": "Maheshpur", "pincode": "482002", "road_name": "", "confidence": 10, "precision_label": "Area exact", "cleaned_address": "Behind HP Petrol Pump, Sharda Chowk, Maheshpur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "Kamla Gupta hospital", "primary_locality": "Premnagar", "pincode": "482001", "road_name": "Gupteshwar Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Gupteshwar Road, Ward, Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "SDM service", "primary_locality": "Ganji Nagar", "pincode": "482002", "road_name": "", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Raddi Chowk, Ganji Nagar, Adhartal, Vehicle Fac Jabalpur, Jabalpur, Madhya Pradesh, 482002, India"}, {"business_name": "A mechanic master", "primary_locality": "", "pincode": "482002", "road_name": "ISBT To Green City Road", "confidence": 8, "precision_label": "Pincode fallback", "cleaned_address": "Isbt To Green City Road, Jabalpur, Madhya Pradesh, 482002, India"}]}, "discovery": {"core_clusters": [{"name": "Vehicle Fac", "count": 6, "share": 5.8}, {"name": "Napier Town", "count": 5, "share": 4.8}, {"name": "Wright Town", "count": 4, "share": 3.8}, {"name": "Vijay Nagar", "count": 4, "share": 3.8}, {"name": "Premnagar", "count": 3, "share": 2.9}], "low_supply_pockets": [{"locality": "Sheetalpuri", "business_name": "Deepak Enterprise", "pincode": "482002", "road_name": "Link Road", "landmark": "", "priority_score": 51}, {"locality": "Shukla Nagar", "business_name": "AUTO ART - Ceramic, PPF and Detailing Studio", "pincode": "482002", "road_name": "Link Road", "landmark": "Near Chandi Mata Mandir", "priority_score": 51}, {"locality": "Dixit Colony", "business_name": "Speed Car Wash", "pincode": "482002", "road_name": "Katangi Road", "landmark": "", "priority_score": 50}, {"locality": "LIC", "business_name": "Rao Washing Center", "pincode": "482002", "road_name": "Nagpur Road", "landmark": "", "priority_score": 50}, {"locality": "Scheme No 14", "business_name": "3M Car Care Studio - Car Detailing, Ceramic Coating and PPF, Vijaynagar", "pincode": "482002", "road_name": "Road", "landmark": "", "priority_score": 50}, {"locality": "5wq7+qvg", "business_name": "Namami Car Spa & Wash", "pincode": "482002", "road_name": "Vijay Nagar Road", "landmark": "", "priority_score": 48}, {"locality": "Baldevbag", "business_name": "Afsar Khan car technicals", "pincode": "482002", "road_name": "Ukhri Road", "landmark": "", "priority_score": 48}, {"locality": "Kanchan Vihar", "business_name": "HELPINGHANDS CLEANING SERVICES – Car Washing | Water tank cleaning | House Cleaning | Bathroom cleaning | Housekeeping", "pincode": "482002", "road_name": "Kachnar Road", "landmark": "", "priority_score": 48}, {"locality": "Madhotal", "business_name": "The Cleaning Giants (Car Detailing Center)", "pincode": "482002", "road_name": "Damoh - Jabalpur Road", "landmark": "In Front Of Punjab Steel", "priority_score": 48}, {"locality": "Tulsi Nagar", "business_name": "The Detailing Heroes Jabalpur | Ceramic Coating| Paint Protection Film| Detailing| Paint jobs|", "pincode": "482002", "road_name": "Shiv Nagar Main Road", "landmark": "Opposite Dr Maurya Clinic", "priority_score": 48}], "road_corridors": [{"road": "Link Road", "centers": 4, "localities": ["Sheetalpuri", "Shukla Nagar", "Yadav Colony"], "locality_count": 3, "pincodes": ["482002"], "locality_preview": "Sheetalpuri, Shukla Nagar, Yadav Colony", "pincode_preview": "482002"}, {"road": "Mandla - Jabalpur Road", "centers": 3, "localities": ["Bilhari", "NH 12 A", "Tilhari"], "locality_count": 3, "pincodes": ["482020", "482021"], "locality_preview": "Bilhari, NH 12 A, Tilhari", "pincode_preview": "482020, 482021"}, {"road": "Katangi Road", "centers": 3, "localities": ["Dixit Colony", "Karmeta"], "locality_count": 2, "pincodes": ["482002"], "locality_preview": "Dixit Colony, Karmeta", "pincode_preview": "482002"}, {"road": "Nagpur Road", "centers": 3, "localities": ["LIC", "Pisanhari Madiya"], "locality_count": 2, "pincodes": ["482002", "482003"], "locality_preview": "LIC, Pisanhari Madiya", "pincode_preview": "482002, 482003"}, {"road": "Road", "centers": 3, "localities": ["Napier Town", "Scheme No 14"], "locality_count": 2, "pincodes": ["482001", "482002"], "locality_preview": "Napier Town, Scheme No 14", "pincode_preview": "482001, 482002"}, {"road": "Gupteshwar Road", "centers": 2, "localities": ["Gupteshwer Ward", "Premnagar"], "locality_count": 2, "pincodes": ["482001"], "locality_preview": "Gupteshwer Ward, Premnagar", "pincode_preview": "482001"}, {"road": "Main Road", "centers": 2, "localities": ["5xh7+w5x", "A46"], "locality_count": 2, "pincodes": ["482001", "482003"], "locality_preview": "5xh7+w5x, A46", "pincode_preview": "482001, 482003"}, {"road": "Shakti Bhawan Road", "centers": 2, "localities": ["MPSEB Colony", "Shankarsh Nagar"], "locality_count": 2, "pincodes": ["482001", "482008"], "locality_preview": "MPSEB Colony, Shankarsh Nagar", "pincode_preview": "482001, 482008"}]}, "map": {"points": [{"business_name": "Auto Magnet", "full_address": " Besides, Naval Utkarsh, opposite Anantara Residential Resort, Bilhari, Jabalpur, Pipariya, Madhya Pradesh 482020", "cleaned_address": "Besides Naval Utkarsh, Opposite Anantara Residential Resort, Bilhari, Pipariya, Jabalpur, Madhya Pradesh, 482020, India", "road_name": "", "landmark": "Besides Naval Utkarsh", "nearby_place": "Opposite Anantara Residential Resort", "city": "Jabalpur", "pincode": "482020", "colony_or_area": "Bilhari, Pipariya", "primary_locality": "Bilhari", "confidence": 9, "index": 1, "lat": 23.126328, "lon": 79.972883, "precision": "pincode", "query_used": "482020, India", "display_name": "482020, Cantonment, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Patel Car Wash and Workshop", "full_address": " Infront of Canara Bank Garha Road, Chowk, Yadav Colony, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "In Front Of Canara Bank, Garha Road, Chowk, Yadav Colony, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Garha Road", "landmark": "In Front Of Canara Bank", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Yadav Colony", "primary_locality": "Yadav Colony", "confidence": 10, "index": 2, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "STEAM N GLOW CAR SPA ND CAR WASH", "full_address": " Pisanhari Madiya, Nagpur Rd, Jabalpur, Madhya Pradesh 482003", "cleaned_address": "Nagpur Road, Pisanhari Madiya, Jabalpur, Madhya Pradesh, 482003, India", "road_name": "Nagpur Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482003", "colony_or_area": "Pisanhari Madiya", "primary_locality": "Pisanhari Madiya", "confidence": 9, "index": 3, "lat": 23.165813, "lon": 79.903681, "precision": "pincode", "query_used": "482003, India", "display_name": "482003, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Sai Car Care", "full_address": " Bansal Blood Bank, Prem mandir road old bus stand, 2110a, opp. sukheja tower, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Opposite Sukheja Tower, Bansal Blood Bank, Prem Mandir Road, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Prem Mandir Road", "landmark": "Opposite Sukheja Tower", "nearby_place": "Bansal Blood Bank", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Wright Town", "primary_locality": "Wright Town", "confidence": 10, "index": 4, "lat": 23.163649, "lon": 79.925051, "precision": "area_exact", "query_used": "Wright Town, Jabalpur, Madhya Pradesh, India", "display_name": "Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "99 car", "full_address": " Mandla - Jabalpur Rd, near nexa service centre, Tilhari, Jabalpur, Madhya Pradesh 482020", "cleaned_address": "Near Nexa Service Centre, Mandla - Jabalpur Road, Tilhari, Jabalpur, Madhya Pradesh, 482020, India", "road_name": "Mandla - Jabalpur Road", "landmark": "Near Nexa Service Centre", "nearby_place": "", "city": "Jabalpur", "pincode": "482020", "colony_or_area": "Tilhari", "primary_locality": "Tilhari", "confidence": 10, "index": 5, "lat": 23.059316, "lon": 80.150486, "precision": "area_exact", "query_used": "Tilhari, Jabalpur, Madhya Pradesh, India", "display_name": "Tilhari, Jabalpur Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Dreams Carwash", "full_address": " Infront of sanjivan hospital Ram Nagar, Adhartal, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "In Front Of Sanjivan Hospital Ram, Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "In Front Of Sanjivan Hospital Ram", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Nagar, Adhartal", "primary_locality": "Adhartal", "confidence": 8, "index": 6, "lat": 23.188348, "lon": 79.909272, "precision": "area_exact", "query_used": "Nagar, Adhartal, Jabalpur, Madhya Pradesh, India", "display_name": "Vijay Nagar, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Home Car Wash Jabalpur", "full_address": " Post Office, beside Rajul Apartment, Premnagar, Hathital, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Beside Rajul Apartment, Post Office, Premnagar, Hathital, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "Beside Rajul Apartment", "nearby_place": "Post Office", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Premnagar, Hathital", "primary_locality": "Premnagar", "confidence": 9, "index": 7, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "AUTOEXPERT( EXPERT CAR WASH AND DETAILING STUDIO)", "full_address": " Shop No 2, Shakti Bhawan Rd, Shankarsh Nagar, Rampur, Jabalpur, Madhya Pradesh 482008", "cleaned_address": "Shakti Bhawan Road, Shankarsh Nagar, Rampur, Jabalpur, Madhya Pradesh, 482008, India", "road_name": "Shakti Bhawan Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482008", "colony_or_area": "Shankarsh Nagar, Rampur", "primary_locality": "Shankarsh Nagar", "confidence": 8, "index": 8, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "The Cleaning Giants (Car Detailing Center)", "full_address": " Infront of punjab steel, Damoh - Jabalpur Rd, near I.T.I, Madhotal, chungi naka, Karmeta, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "In Front Of Punjab Steel, Damoh - Jabalpur Road, Madhotal, Chungi Naka, Karmeta, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Damoh - Jabalpur Road", "landmark": "In Front Of Punjab Steel", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Madhotal, Chungi Naka, Karmeta, Raksha", "primary_locality": "Madhotal", "confidence": 9, "index": 9, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Gagan car wash & cab service", "full_address": " APR Colony, Katanga, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Apr Colony, Katanga, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "APR Colony, Katanga", "primary_locality": "APR Colony", "confidence": 7, "index": 10, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Nandu car washing", "full_address": " FOOD CORPORATION OF INDIA, FCI Godown, Shakti Bhawan Rd, MPSEB Colony, Rampur, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Food Corporation Of India, Shakti Bhawan Road, MPSEB Colony, Rampur, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Shakti Bhawan Road", "landmark": "", "nearby_place": "Food Corporation Of India", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "MPSEB Colony, Rampur", "primary_locality": "MPSEB Colony", "confidence": 9, "index": 11, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "WHEELZ & WASH M/s PINPOINT TOOLS & MACHINERY", "full_address": " Sharda chowk, 2291, SHIMLA HILLS ROAD, Nagpur Rd, near LIC, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Near LIC, Shimla Hills Road, Sharda Chowk, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Shimla Hills Road", "landmark": "Near LIC", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "", "primary_locality": "", "confidence": 10, "index": 12, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Car Wash Canter", "full_address": " 5, Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Premnagar, Madan Mahal", "primary_locality": "Premnagar", "confidence": 7, "index": 13, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Aradhya car wash", "full_address": " Joy school road, near ghadhi chowk, Vijay Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Joy School Road, Ghadhi Chowk, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Joy School Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vijay Nagar, Raksha", "primary_locality": "Vijay Nagar", "confidence": 9, "index": 15, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Super Car Wash", "full_address": " beside Jayanti Complex, Marhatal, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Beside Jayanti Complex, Marhatal, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Beside Jayanti Complex", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Marhatal", "primary_locality": "Marhatal", "confidence": 9, "index": 16, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "car washing", "full_address": " Jai Prakash Nagar, Adhartal, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Jai Prakash Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Jai Prakash Nagar, Adhartal", "primary_locality": "Jai Prakash Nagar", "confidence": 7, "index": 17, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Speed Car Wash", "full_address": " 10, Katangi Rd, Dixit Colony, Rajeev Gandhi Nagar, Karmeta, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Katangi Road, Dixit Colony, Rajeev Gandhi Nagar, Karmeta, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Katangi Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Dixit Colony, Rajeev Gandhi Nagar, Karmeta", "primary_locality": "Dixit Colony", "confidence": 8, "index": 18, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Car junction", "full_address": " jain mandir ke pas, Sarda vihar colony ke saamne, Katangi Rd, Karmeta, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Jain Mandir Ke Pas, Katangi Road, Karmeta, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Katangi Road", "landmark": "Jain Mandir Ke Pas", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Karmeta", "primary_locality": "Karmeta", "confidence": 10, "index": 19, "lat": 23.203513, "lon": 79.894271, "precision": "area_exact", "query_used": "Karmeta, Jabalpur, Madhya Pradesh, India", "display_name": "Karmeta, Adhartal Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Daksh car Washing", "full_address": " Adhartal Dhani Kutiya road, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Adhartal Dhani Kutiya Road, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "Adhartal Dhani Kutiya Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "", "primary_locality": "", "confidence": 8, "index": 20, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "mahakal washing center", "full_address": " V 60, Vijay Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vijay Nagar, Raksha", "primary_locality": "Vijay Nagar", "confidence": 7, "index": 21, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Car Wash Centre", "full_address": " Anna Moholla, Ratan Nagar, Madan Mahal, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Anna Moholla, Ratan Nagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Anna Moholla, Ratan Nagar, Madan Mahal", "primary_locality": "Anna Moholla", "confidence": 7, "index": 22, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Himanshu Car Wash", "full_address": " Suji Mohalla, Gohalpur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Suji Mohalla, Gohalpur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Suji Mohalla, Gohalpur", "primary_locality": "Suji Mohalla", "confidence": 7, "index": 23, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "TYRE SHOPPE", "full_address": " Auto Art Madan Mahal Station, Link Road, Ladli Laxmi Path, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Auto Art Madan Mahal Station, Link Road, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Link Road", "landmark": "", "nearby_place": "Auto Art Madan Mahal Station", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "", "primary_locality": "", "confidence": 9, "index": 24, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "M.S. Car Denting and Painting", "full_address": " Old Bus Stand, Sardar Chole Bhatoore Wali Street, behind Bhatia Car Alinement, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Behind Bhatia Car Alinement, Old Bus Stand, Sardar Chole Bhatoore Wali Street, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Sardar Chole Bhatoore Wali Street", "landmark": "Behind Bhatia Car Alinement", "nearby_place": "Old Bus Stand", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Wright Town", "primary_locality": "Wright Town", "confidence": 10, "index": 25, "lat": 23.163649, "lon": 79.925051, "precision": "area_exact", "query_used": "Wright Town, Jabalpur, Madhya Pradesh, India", "display_name": "Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Shri Ram Car Washing Center", "full_address": " Shop At Main Road Shri Ram Nagar, Katangi Rd, Karmeta, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Katangi Road, Karmeta, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Katangi Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Karmeta", "primary_locality": "Karmeta", "confidence": 9, "index": 26, "lat": 23.203513, "lon": 79.894271, "precision": "area_exact", "query_used": "Karmeta, Jabalpur, Madhya Pradesh, India", "display_name": "Karmeta, Adhartal Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "ABHISHEK HONDA BIKE SERVICE AND CAR WASH", "full_address": " New Ramnagar Rd, Jagriti Nagar, Adhartal, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "New Ramnagar Road, Jagriti Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "New Ramnagar Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Jagriti Nagar, Adhartal", "primary_locality": "Jagriti Nagar", "confidence": 8, "index": 27, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Mekal Service Station-SERVO XPERT", "full_address": " Vikas Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Vikas Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vikas Nagar", "primary_locality": "Vikas Nagar", "confidence": 8, "index": 28, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Mahadev Washing Center", "full_address": " MAHADEV WASHING CENTER, next to Royal School, Sanjeevani Nagar, Jabalpur, Madhya Pradesh 482003", "cleaned_address": "Next To Royal School, Mahadev Washing Center, Sanjeevani Nagar, Jabalpur, Madhya Pradesh, 482003, India", "road_name": "", "landmark": "Next To Royal School", "nearby_place": "Mahadev Washing Center", "city": "Jabalpur", "pincode": "482003", "colony_or_area": "Sanjeevani Nagar", "primary_locality": "Sanjeevani Nagar", "confidence": 10, "index": 29, "lat": 23.165813, "lon": 79.903681, "precision": "pincode", "query_used": "482003, India", "display_name": "482003, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Car Space Service Center", "full_address": " Transport Nagar bypass, road, Maharajpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Transport Nagar Bypass, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "Transport Nagar Bypass", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Maharajpur", "primary_locality": "Maharajpur", "confidence": 9, "index": 31, "lat": 23.232327, "lon": 79.95157, "precision": "area_exact", "query_used": "Maharajpur, Jabalpur, Madhya Pradesh, India", "display_name": "Maharajpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Sanju car washing and car key remod", "full_address": " 5WRF+M9H, Trimurti Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "5wrf+m9h, Trimurti Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "5wrf+m9h, Trimurti Nagar", "primary_locality": "5wrf+m9h", "confidence": 7, "index": 32, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Afsar Khan car technicals", "full_address": " Ukhri Rd, Baldevbag, Janki Nagar, Jabalpur, New Adaresh Colony, Madhya Pradesh 482002", "cleaned_address": "Ukhri Road, Baldevbag, Janki Nagar, New Adaresh Colony, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Ukhri Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Baldevbag, Janki Nagar, New Adaresh Colony", "primary_locality": "Baldevbag", "confidence": 8, "index": 33, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Ashish Car Wash", "full_address": " 910, New Shobhapur Colony, Shobhapur, Jabalpur, Madhya Pradesh 482009", "cleaned_address": "New Shobhapur Colony, Shobhapur, Jabalpur, Madhya Pradesh, 482009, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482009", "colony_or_area": "New Shobhapur Colony, Shobhapur", "primary_locality": "New Shobhapur Colony", "confidence": 7, "index": 34, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Aryan Car Washing", "full_address": " Neta Colony, Adhartal, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Neta Colony, Adhartal, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Neta Colony, Adhartal", "primary_locality": "Neta Colony", "confidence": 7, "index": 35, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Abhishek Car Wash", "full_address": " Power House, GCF, Shobhapur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Power House, Gcf, Shobhapur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Power House, Gcf, Shobhapur", "primary_locality": "Power House", "confidence": 7, "index": 36, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "JAS WASHING CENTER", "full_address": " 445, Gupteshwar Rd, Gupteshwer Ward, Premnagar, Hathital, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Gupteshwar Road, Gupteshwer Ward, Premnagar, Hathital, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Gupteshwar Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Gupteshwer Ward, Premnagar, Hathital", "primary_locality": "Gupteshwer Ward", "confidence": 8, "index": 37, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Steel Fancy Grill", "full_address": " 331, Noori Nagar, Adhartal, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Noori Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Noori Nagar, Adhartal", "primary_locality": "Noori Nagar", "confidence": 7, "index": 38, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Sandeep Car Wash", "full_address": " Vehicle Fac, 2230, behind Sharda aata chakki, New Kanchanpur, bhatta mohalla, Kanchanpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Behind Sharda Aata Chakki, Vehicle Fac, New Kanchanpur, Bhatta Mohalla, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "Behind Sharda Aata Chakki", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Vehicle Fac, New Kanchanpur, Bhatta Mohalla, Kanchanpur", "primary_locality": "Vehicle Fac", "confidence": 8, "index": 39, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "The Detailing Boys", "full_address": " H. No 2519, Infornt Of Chirayu Hospital, behind Jai Store, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "In Front Of Chirayu Hospital, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "In Front Of Chirayu Hospital", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Wright Town", "primary_locality": "Wright Town", "confidence": 9, "index": 40, "lat": 23.163649, "lon": 79.925051, "precision": "area_exact", "query_used": "Wright Town, Jabalpur, Madhya Pradesh, India", "display_name": "Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Mister car wash jabalpur", "full_address": " Shop no 1, Jain tower, Russel Chowk, Napier Town, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Jain Tower, Russel Chowk, Napier Town, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "Jain Tower", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Napier Town", "primary_locality": "Napier Town", "confidence": 10, "index": 42, "lat": 23.161373, "lon": 79.924224, "precision": "area_exact", "query_used": "Napier Town, Jabalpur, Madhya Pradesh, India", "display_name": "CGHS Dispensary No.1, Napier Town, Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Rao Washing Center", "full_address": " 677, Lic, Nagpur Rd, Maheshpur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Nagpur Road, LIC, Maheshpur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Nagpur Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "LIC, Maheshpur", "primary_locality": "LIC", "confidence": 8, "index": 43, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Urban Car Rental In Jabalpur", "full_address": " House' no 119, jama masjid compound, Andherdeo Rd, Andherdeo, Ganjipura, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Andherdeo Road, House' No 119, Jama Masjid Compound, Andherdeo, Ganjipura, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Andherdeo Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "House' No 119, Jama Masjid Compound, Andherdeo, Ganjipura", "primary_locality": "House' No 119", "confidence": 8, "index": 44, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Pathak Service Center", "full_address": " 1, Ahmad Nagar, Gohalpur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Ahmad Nagar, Gohalpur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Ahmad Nagar, Gohalpur", "primary_locality": "Ahmad Nagar", "confidence": 7, "index": 45, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Maruti Suzuki Authorised Service (Yash Vehicles Care)", "full_address": " Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Wright Town", "primary_locality": "Wright Town", "confidence": 8, "index": 46, "lat": 23.163649, "lon": 79.925051, "precision": "area_exact", "query_used": "Wright Town, Jabalpur, Madhya Pradesh, India", "display_name": "Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "MAA NARMADA HOME CLEANING SERVICES", "full_address": " Sadar, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Sadar, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Sadar", "primary_locality": "Sadar", "confidence": 8, "index": 47, "lat": 23.151563, "lon": 79.946113, "precision": "area_exact", "query_used": "Sadar, Jabalpur, Madhya Pradesh, India", "display_name": "Sadar, Cantonment, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "DAZZLE car wash and accessories", "full_address": " Gate Number 4, near Kothari Hospital, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Near Kothari Hospital, Gate Number 4, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Near Kothari Hospital", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Gate Number 4, Wright Town", "primary_locality": "Gate Number 4", "confidence": 8, "index": 48, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Rhythm Car Decoration", "full_address": " 1, Civic Center, Napier Town, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Civic Center, Napier Town, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "Civic Center", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Napier Town", "primary_locality": "Napier Town", "confidence": 9, "index": 49, "lat": 23.161373, "lon": 79.924224, "precision": "area_exact", "query_used": "Napier Town, Jabalpur, Madhya Pradesh, India", "display_name": "CGHS Dispensary No.1, Napier Town, Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sahil Vehicle Washing Centre", "full_address": " Neta Colony, Mansarovar Colony, Adhartal, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Neta Colony, Mansarovar Colony, Adhartal, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Neta Colony, Mansarovar Colony, Adhartal", "primary_locality": "Neta Colony", "confidence": 7, "index": 50, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Chimni Minerals", "full_address": " New, Gokalpur Gokalpur Road, Gokulpur, Jabalpur, Madhya Pradesh 482009", "cleaned_address": "Gokalpur Gokalpur Road, New, Gokulpur, Jabalpur, Madhya Pradesh, 482009, India", "road_name": "Gokalpur Gokalpur Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482009", "colony_or_area": "New, Gokulpur", "primary_locality": "New", "confidence": 8, "index": 51, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Satyam Car Wash", "full_address": " Patel Nagar, Maitri Nagar, Maharajpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Patel Nagar, Maitri Nagar, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Patel Nagar, Maitri Nagar, Maharajpur", "primary_locality": "Patel Nagar", "confidence": 7, "index": 52, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Ravi Washing Center", "full_address": " Vehicle Fac, 176, Badhaiya Mohalla, Alok Nagar, Tapti Nagar, Adhartal, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Vehicle Fac, Badhaiya Mohalla, Alok Nagar, Tapti Nagar, Adhartal, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vehicle Fac, Badhaiya Mohalla, Alok Nagar, Tapti Nagar, Adhartal", "primary_locality": "Vehicle Fac", "confidence": 7, "index": 53, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Rohit Car Wash", "full_address": " Anna Mohalla, Gurudev Colony, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Anna Mohalla, Gurudev Colony, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Anna Mohalla, Gurudev Colony", "primary_locality": "Anna Mohalla", "confidence": 7, "index": 54, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Ashok Car Wash", "full_address": " Vehicle Fac, New Kanchanpur, Kanchanpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Vehicle Fac, New Kanchanpur, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Vehicle Fac, New Kanchanpur, Kanchanpur", "primary_locality": "Vehicle Fac", "confidence": 7, "index": 55, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "manoj car wash", "full_address": " Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Vehicle Fac, Maitri Nagar, Kanchanpur", "primary_locality": "Vehicle Fac", "confidence": 7, "index": 56, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "mahendra car wash", "full_address": " Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Vehicle Fac, Maitri Nagar, Kanchanpur", "primary_locality": "Vehicle Fac", "confidence": 7, "index": 57, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "vinod car wash", "full_address": " Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Vehicle Fac, Maitri Nagar, Kanchanpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Vehicle Fac, Maitri Nagar, Kanchanpur", "primary_locality": "Vehicle Fac", "confidence": 7, "index": 58, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Manish Car Wash", "full_address": " Housing Board Housing Board, Maharajpur, Jabalpur, Madhya Pradesh 482004", "cleaned_address": "Housing Board Housing Board, Maharajpur, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "Housing Board Housing Board", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Maharajpur", "primary_locality": "Maharajpur", "confidence": 9, "index": 59, "lat": 23.232327, "lon": 79.95157, "precision": "area_exact", "query_used": "Maharajpur, Jabalpur, Madhya Pradesh, India", "display_name": "Maharajpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Seelam Car Washing", "full_address": " Seelam Car Washing Dada Ki Bagiya, Jabalpur, Khirkiya Khurd, Madhya Pradesh 482004", "cleaned_address": "Seelam Car Washing Dada Ki Bagiya, Khirkiya Khurd, Jabalpur, Madhya Pradesh, 482004, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482004", "colony_or_area": "Seelam Car Washing Dada Ki Bagiya, Khirkiya Khurd", "primary_locality": "Seelam Car Washing Dada Ki Bagiya", "confidence": 7, "index": 60, "lat": 23.189076, "lon": 79.93945, "precision": "pincode", "query_used": "482004, India", "display_name": "482004, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Deepak Enterprise", "full_address": " Aaga Chowk, Link Rode, Sheetalpuri, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Link Road, Aaga Chowk, Sheetalpuri, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Link Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Sheetalpuri", "primary_locality": "Sheetalpuri", "confidence": 10, "index": 61, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "The Detailing Xperts Jabalpur | Ceramic Coating | Garware Paint Protection Film", "full_address": " in front of Athlete Gym, Gole Bazar, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "In Front Of Athlete Gym, Gole Bazar, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "In Front Of Athlete Gym", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Gole Bazar, Wright Town", "primary_locality": "Gole Bazar", "confidence": 8, "index": 62, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "The Detailing Mafia Jabalpur | Car Detailing | Paint Protection Film | Ceramic & Graphene Coating", "full_address": " Plot No. 1, Bandariya Tiraha, Katanga, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Bandariya Tiraha, Katanga, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Katanga", "primary_locality": "Katanga", "confidence": 9, "index": 63, "lat": 23.147043, "lon": 79.93679, "precision": "area_exact", "query_used": "Katanga, Jabalpur, Madhya Pradesh, India", "display_name": "Katanga TV Tower, Narmada Road, Cantonment, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sweep wash", "full_address": " Mandla - Jabalpur Rd, Bilhari, Jabalpur, Madhya Pradesh 482021", "cleaned_address": "Mandla - Jabalpur Road, Bilhari, Jabalpur, Madhya Pradesh, 482021, India", "road_name": "Mandla - Jabalpur Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482021", "colony_or_area": "Bilhari", "primary_locality": "Bilhari", "confidence": 9, "index": 64, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "NIRANKAR AUTOMOTIVE CAR WASH & TRAVELS (Multi Brand Car Cares And Detailing Workshop)", "full_address": " beside Mohit Apartment, Shivar Garden, Tilhari, Madhya Pradesh 482020", "cleaned_address": "Beside Mohit Apartment, Shivar Garden, Tilhari, Jabalpur, Madhya Pradesh, 482020, India", "road_name": "", "landmark": "Beside Mohit Apartment", "nearby_place": "Shivar Garden", "city": "Jabalpur", "pincode": "482020", "colony_or_area": "Tilhari", "primary_locality": "Tilhari", "confidence": 10, "index": 65, "lat": 23.059316, "lon": 80.150486, "precision": "area_exact", "query_used": "Tilhari, Jabalpur, Madhya Pradesh, India", "display_name": "Tilhari, Jabalpur Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "3M Car Care Studio - Car Detailing, Ceramic Coating and PPF, Vijaynagar", "full_address": " Scheme No 14, Plot No 46, Road, near SBI Chowk, Kanchan Vihar, Vijay Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Road, SBI Chowk, Scheme No 14, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Scheme No 14, Kanchan Vihar, Vijay Nagar, Raksha", "primary_locality": "Scheme No 14", "confidence": 9, "index": 66, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Car Studioz", "full_address": " opp. Dr Sachin Luthra, nr. Bhavartal Garden Road, Napier Town, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Opposite Dr Sachin Luthra, Road, Napier Town, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Road", "landmark": "Opposite Dr Sachin Luthra", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Napier Town", "primary_locality": "Napier Town", "confidence": 10, "index": 67, "lat": 23.161373, "lon": 79.924224, "precision": "area_exact", "query_used": "Napier Town, Jabalpur, Madhya Pradesh, India", "display_name": "CGHS Dispensary No.1, Napier Town, Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "The Detailing Heroes Jabalpur | Ceramic Coating| Paint Protection Film| Detailing| Paint jobs|", "full_address": " 1528/A, Shiv Nagar Main Rd, opposite Dr maurya clinic, Tulsi Nagar, Sarvodaya Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Opposite Dr Maurya Clinic, Shiv Nagar Main Road, Tulsi Nagar, Sarvodaya Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Shiv Nagar Main Road", "landmark": "Opposite Dr Maurya Clinic", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Tulsi Nagar, Sarvodaya Nagar", "primary_locality": "Tulsi Nagar", "confidence": 9, "index": 68, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "AUTO ART - Ceramic, PPF and Detailing Studio", "full_address": " Link road, Madan Mahal Station, near Chandi Mata Mandir, Shukla Nagar, Ranipur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Near Chandi Mata Mandir, Madan Mahal Station, Link Road, Shukla Nagar, Ranipur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Link Road", "landmark": "Near Chandi Mata Mandir", "nearby_place": "Madan Mahal Station", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Shukla Nagar, Ranipur", "primary_locality": "Shukla Nagar", "confidence": 10, "index": 69, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "HIGH DEFINITION WASHING STUDIO", "full_address": " Shop No. 3, Link Road, Yadav Colony, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Link Road, Yadav Colony, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Link Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Yadav Colony", "primary_locality": "Yadav Colony", "confidence": 9, "index": 70, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "The Junk Garage Car Wash", "full_address": " Sheetlamai, chowk, beside Cenra bank, Ghamapur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Beside Canara Bank, Chowk, Sheetlamai, Ghamapur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Beside Canara Bank", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Sheetlamai, Ghamapur", "primary_locality": "Sheetlamai", "confidence": 9, "index": 71, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Easydays Premium Carwash", "full_address": " 290/C, near Bhavartal Garden Road, Napier Town, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Near Bhavartal Garden, Road, Napier Town, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Road", "landmark": "Near Bhavartal Garden", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Napier Town", "primary_locality": "Napier Town", "confidence": 10, "index": 72, "lat": 23.161373, "lon": 79.924224, "precision": "area_exact", "query_used": "Napier Town, Jabalpur, Madhya Pradesh, India", "display_name": "CGHS Dispensary No.1, Napier Town, Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sunil Washing and Servicing Centre", "full_address": " 5XVG+8J7, Sector 2, Shobhapur, Vehicle Fac. Jabalpur, Jabalpur, Madhya Pradesh 482009", "cleaned_address": "5xvg+8j7, Sector 2, Shobhapur, Vehicle Fac Jabalpur, Jabalpur, Madhya Pradesh, 482009, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482009", "colony_or_area": "5xvg+8j7, Sector 2, Shobhapur, Vehicle Fac Jabalpur", "primary_locality": "5xvg+8j7", "confidence": 7, "index": 73, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Sarika Cleaning |Steam Car washing | Car wash | Door step Car wash |Steam Bros|Watertank Cleaning |Sofa Cleaning", "full_address": " Cheritaal Bhandari Baba ke pass, Rajendra prasad Ward, 157, Dixitpura Rd, Uprainganj, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Dixitpura Road, Cheritaal Bhandari Baba Ke Pass, Rajendra Prasad Ward, Uprainganj, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Dixitpura Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Cheritaal Bhandari Baba Ke Pass, Rajendra Prasad Ward, Uprainganj", "primary_locality": "Cheritaal Bhandari Baba Ke Pass", "confidence": 8, "index": 74, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Ajju Car Washing Center | Bike Washing | Servicing | Car Washing Point In Jabalpur", "full_address": " GCF estate, beside Panhera Petrol pump, Gokulpur, Jabalpur, Madhya Pradesh 482011", "cleaned_address": "Beside Panhera Petrol Pump, Gcf Estate, Gokulpur, Jabalpur, Madhya Pradesh, 482011, India", "road_name": "", "landmark": "Beside Panhera Petrol Pump", "nearby_place": "", "city": "Jabalpur", "pincode": "482011", "colony_or_area": "Gcf Estate, Gokulpur", "primary_locality": "Gcf Estate", "confidence": 8, "index": 75, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Best ceramic coating in jabalpur Zoom clean car washing,detailing & ceramic coating", "full_address": " 6V9X+C34, Katangi bypass road near star city gate, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Katangi Bypass Road Near Star City Gate, 6v9x+c34, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Katangi Bypass Road Near Star City Gate", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "6v9x+c34", "primary_locality": "6v9x+c34", "confidence": 9, "index": 76, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Namami Car Spa & Wash", "full_address": " 5WQ7+QVG, Vijay Nagar Rd, Kanchan Vihar, Vijay Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Vijay Nagar Road, 5wq7+qvg, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Vijay Nagar Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "5wq7+qvg, Kanchan Vihar, Vijay Nagar, Raksha", "primary_locality": "5wq7+qvg", "confidence": 8, "index": 77, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Gloss Gods detailing | ceramic coating | Paint protection film| Wraps| car detailing | Mods | PPF", "full_address": " A46, main road, Dhanvantari Nagar, Jabalpur, Madhya Pradesh 482003", "cleaned_address": "Main Road, A46, Dhanvantari Nagar, Jabalpur, Madhya Pradesh, 482003, India", "road_name": "Main Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482003", "colony_or_area": "A46, Dhanvantari Nagar", "primary_locality": "A46", "confidence": 8, "index": 78, "lat": 23.165813, "lon": 79.903681, "precision": "pincode", "query_used": "482003, India", "display_name": "482003, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Singh Washing Centre", "full_address": " Singh Washing Centre, Madan Mahal, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Singh Washing Centre, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "Singh Washing Centre", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Madan Mahal", "primary_locality": "Madan Mahal", "confidence": 9, "index": 79, "lat": 23.160281, "lon": 79.920795, "precision": "area_exact", "query_used": "Madan Mahal, Jabalpur, Madhya Pradesh, India", "display_name": "Madan Mahal, Jabalpur Flyover, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "The Detailing Xperts Jabalpur |Vijay Nagar | Ceramic Coating | Paint Protection Film", "full_address": " Scheme no. 41, Plot no. 6, Vijay Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Scheme No 41, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Scheme No 41, Vijay Nagar", "primary_locality": "Scheme No 41", "confidence": 7, "index": 80, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "HELPINGHANDS CLEANING SERVICES – Car Washing | Water tank cleaning | House Cleaning | Bathroom cleaning | Housekeeping", "full_address": " Shop No 24, Kachnar Rd, Kanchan Vihar, Vijay Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Kachnar Road, Kanchan Vihar, Vijay Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Kachnar Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Kanchan Vihar, Vijay Nagar, Raksha", "primary_locality": "Kanchan Vihar", "confidence": 8, "index": 81, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Shiv sakti wasing center", "full_address": " Deendayal Upadhyay Marg, Vijay Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Deendayal Upadhyay Marg, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Deendayal Upadhyay Marg", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vijay Nagar", "primary_locality": "Vijay Nagar", "confidence": 9, "index": 82, "lat": 23.188348, "lon": 79.909272, "precision": "area_exact", "query_used": "Vijay Nagar, Jabalpur, Madhya Pradesh, India", "display_name": "Vijay Nagar, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Vijay bike care", "full_address": " 4WRC+PR9, Gupteshwar, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "4wrc+pr9, Gupteshwar, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "4wrc+pr9, Gupteshwar", "primary_locality": "4wrc+pr9", "confidence": 7, "index": 83, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Castrol Auto Service - No 1 Car Home", "full_address": " Scheme no 41, Swami Vivekanand Ward, Plot No 114/115, near Ekta Chowk, Vijay Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Ekta Chowk, Scheme No 41, Swami Vivekanand Ward, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Scheme No 41, Swami Vivekanand Ward, Vijay Nagar", "primary_locality": "Scheme No 41", "confidence": 8, "index": 84, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "One Call Car washing centr", "full_address": " 5V2J+W5P, Doctors Colony, Medical College Colony, Jabalpur, Madhya Pradesh 482003", "cleaned_address": "Medical College Colony, 5v2j+w5p, Doctors Colony, Jabalpur, Madhya Pradesh, 482003, India", "road_name": "", "landmark": "", "nearby_place": "Medical College Colony", "city": "Jabalpur", "pincode": "482003", "colony_or_area": "5v2j+w5p, Doctors Colony", "primary_locality": "5v2j+w5p", "confidence": 8, "index": 85, "lat": 23.165813, "lon": 79.903681, "precision": "pincode", "query_used": "482003, India", "display_name": "482003, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Shakti bhawan road shree ram auto garage", "full_address": " 4WRC+X62, Gupteshwar, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "4wrc+x62, Gupteshwar, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "4wrc+x62, Gupteshwar", "primary_locality": "4wrc+x62", "confidence": 7, "index": 86, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Patel automobile", "full_address": " 5WQ7+JRJ, Vikas Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "5wq7+jrj, Vikas Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "5wq7+jrj, Vikas Nagar, Raksha", "primary_locality": "5wq7+jrj", "confidence": 7, "index": 87, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Impact Wash", "full_address": " 5WF8+H32, Hanuman Mandir Gali, Harshit Nagar, Daya Nagar, Yadav Colony, Jabalpur, New Adaresh Colony, Madhya Pradesh 482002", "cleaned_address": "Hanuman Mandir Gali, 5wf8+h32, Harshit Nagar, Daya Nagar, Yadav Colony, New Adaresh Colony, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "Hanuman Mandir Gali", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "5wf8+h32, Harshit Nagar, Daya Nagar, Yadav Colony, New Adaresh Colony", "primary_locality": "5wf8+h32", "confidence": 8, "index": 88, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Patel automobile car accessories", "full_address": " S107, Vikas Nagar, Jabalpur, Raksha, Madhya Pradesh 482002", "cleaned_address": "Vikas Nagar, Raksha, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vikas Nagar, Raksha", "primary_locality": "Vikas Nagar", "confidence": 7, "index": 89, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Shree Balaji Car Accessories jabalpur", "full_address": " Narendra Enterprise kay samnay, Teenpatti chok, Dwarka sweets, old bus stend, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Narendra Enterprise Kay Samnay, Old Bus Stand, Teenpatti Chok, Dwarka Sweets, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Narendra Enterprise Kay Samnay", "nearby_place": "Old Bus Stand", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Dwarka Sweets", "primary_locality": "Dwarka Sweets", "confidence": 10, "index": 90, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Unique Car Decorz", "full_address": " Shop no 8, Marble Complex, Shastri Bridge, opposite Diesel Service, Napier Town, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Opposite Diesel Service, Marble Complex, Shastri Bridge, Napier Town, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Shastri Bridge", "landmark": "Opposite Diesel Service", "nearby_place": "Marble Complex", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Napier Town", "primary_locality": "Napier Town", "confidence": 10, "index": 91, "lat": 23.161373, "lon": 79.924224, "precision": "area_exact", "query_used": "Napier Town, Jabalpur, Madhya Pradesh, India", "display_name": "CGHS Dispensary No.1, Napier Town, Wright Town, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Mahindra First Choice Services - 4 Wheeler -SHRI WARDHMAN MOTOWORKS", "full_address": " 1566 Bedi Nagar Sharda chowk,, Nagpur Road , Jabalpur, beside Jio-bp, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Beside Jio-Bp, Nagpur Road, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "Nagpur Road", "landmark": "Beside Jio-Bp", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "", "primary_locality": "", "confidence": 9, "index": 92, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Maruti Suzuki ARENA (Standard Motocorp, Jabalpur, Napier Town)", "full_address": " Plot no. 8/1B, Near Bhanwartal garden, near GULZAR HOTEL Madan Mahal, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Near Bhanwartal, Garden, Mahal, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "Near Bhanwartal", "nearby_place": "Garden", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Mahal", "primary_locality": "Mahal", "confidence": 10, "index": 93, "lat": 23.160281, "lon": 79.920795, "precision": "area_exact", "query_used": "Mahal, Jabalpur, Madhya Pradesh, India", "display_name": "Madan Mahal, Jabalpur Flyover, Vijay Nagar, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482001, India"}, {"business_name": "Sharad Cleaning home service Jabalpur mp", "full_address": " 712 nagpur road. Soni basti 8889000645jabalpur 712 Nagpur road. Soni Basti.8889000645jabalpur 712 nagpur. road. Soni Basti.8889000645, Madhya Pradesh 482001", "cleaned_address": "Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "", "primary_locality": "", "confidence": 7, "index": 94, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "IndianOil", "full_address": " nh 12 a, Mandla - Jabalpur Rd, near gaur tiraha, Saliwara, Jabalpur, Madhya Pradesh 482021", "cleaned_address": "Mandla - Jabalpur Road, Gaur Tiraha, NH 12 A, Saliwara, Jabalpur, Madhya Pradesh, 482021, India", "road_name": "Mandla - Jabalpur Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482021", "colony_or_area": "NH 12 A, Saliwara", "primary_locality": "NH 12 A", "confidence": 9, "index": 95, "lat": 23.170152, "lon": 79.932451, "precision": "city", "query_used": "Jabalpur, Madhya Pradesh, India", "display_name": "Jabalpur, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Amit Travels-Car Rental In Jabalpur", "full_address": " Niranjan Vihar, university road, South Civil Lines, Pachpedi, South Civil Lines, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "University Road, Niranjan Vihar, South Civil Lines, Pachpedi, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "University Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Niranjan Vihar, South Civil Lines, Pachpedi", "primary_locality": "Niranjan Vihar", "confidence": 8, "index": 96, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Maruti Suzuki Service (Standard Auto Agencies)", "full_address": " DEENDAYAL CHECK, Damoh Naka, Vijay Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Deendayal Check, Damoh Naka, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Deendayal Check, Damoh Naka, Vijay Nagar", "primary_locality": "Deendayal Check", "confidence": 7, "index": 97, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Anmol Hyundai Service", "full_address": " In front of MPEB office mission compound, near आयकर कार्यालय, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "In Front Of MPEB Office Mission, Compound, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "", "landmark": "In Front Of MPEB Office Mission", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Compound", "primary_locality": "Compound", "confidence": 9, "index": 98, "lat": 23.131945, "lon": 79.873218, "precision": "area_exact", "query_used": "Compound, Jabalpur, Madhya Pradesh, India", "display_name": "Parkinn Hotel Compound, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Maruti Suzuki True Value (Standard Auto Agencies, Jabalpur, Vijay Nagar)", "full_address": " UKHARI SQUARE, INFRONT OF WATER TANK, MR-4 Rd, Vijay Nagar, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "In Front Of Water Tank, Mr-4 Road, Ukhari Square, Vijay Nagar, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "MR-4 Road", "landmark": "In Front Of Water Tank", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Vijay Nagar", "primary_locality": "Vijay Nagar", "confidence": 10, "index": 99, "lat": 23.188348, "lon": 79.909272, "precision": "area_exact", "query_used": "Vijay Nagar, Jabalpur, Madhya Pradesh, India", "display_name": "Vijay Nagar, Jabalpur, Adhartal Tahsil, Jabalpur, Madhya Pradesh, 482003, India"}, {"business_name": "Car Wash N Detailing", "full_address": " Pawan Sthapak, Jan Jyoti Hospital, Plot No.- .- 1053, near Gol Bazar Road, Wright Town, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Jan Jyoti Hospital, Pawan Sthapak, Wright Town, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "Jan Jyoti Hospital", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Pawan Sthapak, Wright Town", "primary_locality": "Pawan Sthapak", "confidence": 8, "index": 100, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Shakti Washing Center", "full_address": " 5XH7+W5X, Main Road, near Mathura Ustad Vyam Shala, Chungi Chowki, KanchGhar, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Near Mathura Ustad Vyam Shala, Main Road, 5xh7+w5x, Chungi Chowki, Kanchghar, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Main Road", "landmark": "Near Mathura Ustad Vyam Shala", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "5xh7+w5x, Chungi Chowki, Kanchghar", "primary_locality": "5xh7+w5x", "confidence": 9, "index": 101, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Samar spare parts and servicing centre", "full_address": " 5WQR+9JF, Raddi Chowk, Adhartal, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Raddi Chowk, 5wqr+9jf, Adhartal, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "5wqr+9jf, Adhartal", "primary_locality": "5wqr+9jf", "confidence": 8, "index": 102, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Home Wash", "full_address": " Tower, Ranjhi, 948, Champa Nagar Main Rd, Ranjhi, Manegaon, Jabalpur, Madhya Pradesh 482005", "cleaned_address": "Tower, Champa Nagar Main Road, Ranjhi, Manegaon, Jabalpur, Madhya Pradesh, 482005, India", "road_name": "Champa Nagar Main Road", "landmark": "", "nearby_place": "Tower", "city": "Jabalpur", "pincode": "482005", "colony_or_area": "Ranjhi, Manegaon", "primary_locality": "Ranjhi", "confidence": 9, "index": 103, "lat": 23.165146, "lon": 79.996716, "precision": "pincode", "query_used": "482005, India", "display_name": "482005, Cantonment, Ranjhi Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Bosch Car Service - Matador Centre", "full_address": " Sharda Chowk, behind hp petrol pump, beside pawan caterers, Maheshpur, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Behind HP Petrol Pump, Sharda Chowk, Maheshpur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "Behind HP Petrol Pump", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Maheshpur", "primary_locality": "Maheshpur", "confidence": 10, "index": 104, "lat": 23.116293, "lon": 80.520973, "precision": "area_exact", "query_used": "Maheshpur, Jabalpur, Madhya Pradesh, India", "display_name": "Maheshpur, Kundam Tahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "Kamla Gupta hospital", "full_address": " Ward, Gupteshwar Rd, Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh 482001", "cleaned_address": "Gupteshwar Road, Ward, Premnagar, Madan Mahal, Jabalpur, Madhya Pradesh, 482001, India", "road_name": "Gupteshwar Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482001", "colony_or_area": "Ward, Premnagar, Madan Mahal", "primary_locality": "Premnagar", "confidence": 8, "index": 105, "lat": 23.162665, "lon": 79.933261, "precision": "pincode", "query_used": "482001, India", "display_name": "482001, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "SDM service", "full_address": " Raddi Chowk, Ganji Nagar, Adhartal, Jabalpur, Vehicle Fac. Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Raddi Chowk, Ganji Nagar, Adhartal, Vehicle Fac Jabalpur, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "Ganji Nagar, Adhartal, Vehicle Fac Jabalpur", "primary_locality": "Ganji Nagar", "confidence": 8, "index": 106, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}, {"business_name": "A mechanic master", "full_address": " isbt to green city road, MR-4 Rd, Jabalpur, Madhya Pradesh 482002", "cleaned_address": "Isbt To Green City Road, Jabalpur, Madhya Pradesh, 482002, India", "road_name": "ISBT To Green City Road", "landmark": "", "nearby_place": "", "city": "Jabalpur", "pincode": "482002", "colony_or_area": "", "primary_locality": "", "confidence": 8, "index": 107, "lat": 23.176364, "lon": 79.888255, "precision": "pincode", "query_used": "482002, India", "display_name": "482002, Jabalpur, GorakhpurTahsil, Jabalpur, Madhya Pradesh, India"}], "hotspots": [{"name": "Vehicle Fac", "count": 6, "lat": 23.186957, "lon": 79.930917, "pincodes": ["482002", "482004"]}, {"name": "Napier Town", "count": 5, "lat": 23.161373, "lon": 79.924224, "pincodes": ["482001"]}, {"name": "Vijay Nagar", "count": 4, "lat": 23.182356, "lon": 79.898764, "pincodes": ["482002"]}, {"name": "Wright Town", "count": 4, "lat": 23.163649, "lon": 79.925051, "pincodes": ["482002"]}, {"name": "482002", "count": 3, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "Premnagar", "count": 3, "lat": 23.162665, "lon": 79.933261, "pincodes": ["482001"]}, {"name": "482001", "count": 2, "lat": 23.162665, "lon": 79.933261, "pincodes": ["482001"]}, {"name": "Bilhari", "count": 2, "lat": 23.14824, "lon": 79.952667, "pincodes": ["482020", "482021"]}, {"name": "Karmeta", "count": 2, "lat": 23.203513, "lon": 79.894271, "pincodes": ["482002"]}, {"name": "Maharajpur", "count": 2, "lat": 23.232327, "lon": 79.95157, "pincodes": ["482004"]}, {"name": "Neta Colony", "count": 2, "lat": 23.189076, "lon": 79.93945, "pincodes": ["482004"]}, {"name": "Scheme No 41", "count": 2, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "Tilhari", "count": 2, "lat": 23.059316, "lon": 80.150486, "pincodes": ["482020"]}, {"name": "Vikas Nagar", "count": 2, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "Yadav Colony", "count": 2, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "482004", "count": 1, "lat": 23.189076, "lon": 79.93945, "pincodes": ["482004"]}, {"name": "4wrc+pr9", "count": 1, "lat": 23.162665, "lon": 79.933261, "pincodes": ["482001"]}, {"name": "4wrc+x62", "count": 1, "lat": 23.162665, "lon": 79.933261, "pincodes": ["482001"]}, {"name": "5v2j+w5p", "count": 1, "lat": 23.165813, "lon": 79.903681, "pincodes": ["482003"]}, {"name": "5wf8+h32", "count": 1, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "5wq7+jrj", "count": 1, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "5wq7+qvg", "count": 1, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "5wqr+9jf", "count": 1, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "5wrf+m9h", "count": 1, "lat": 23.176364, "lon": 79.888255, "pincodes": ["482002"]}, {"name": "5xh7+w5x", "count": 1, "lat": 23.162665, "lon": 79.933261, "pincodes": ["482001"]}], "center": [23.1702, 79.9325], "precision_mix": [{"name": "pincode", "value": 73}, {"name": "area_exact", "value": 24}, {"name": "city", "value": 7}, {"name": "unresolved", "value": 3}]}, "quality": {"missing_counts": {"City": 3, "Area": 9, "Road": 63, "Landmark": 75, "Nearby Place": 87, "Pincode": 3, "Cleaned Address": 3}, "precision_counter": {"pincode": 73, "area_exact": 24, "city": 7, "unresolved": 3}, "confidence_counter": {"9": 27, "10": 18, "8": 30, "7": 29, "1": 3}}, "insights": ["104 of 107 records contain structured location fields and feed the spatial views.", "Pincode 482002 concentrates 47 centers, or 45.2% of usable supply.", "The top three pincodes hold 85.6% of the file, while the top five primary localities hold 21.2%.", "60 of 73 primary localities appear only once, confirming a strong long-tail market shape."], "methodology": ["Business metrics and charts use only the parsed CSV on disk.", "Map coordinates are derived from CSV locality, road, chowk, or pincode strings via geocoding; no revenue, demand, or market estimates are introduced.", "Low-supply pockets indicate low observed supply in this file, not proven customer demand gaps."]}</script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    const dashboardData = JSON.parse(document.getElementById("dashboard-data").textContent);
+
+    const palette = {
+      cyan: "#44f0ff",
+      teal: "#49f6b3",
+      amber: "#ffbf69",
+      rose: "#ff6fb5",
+      violet: "#8d7dff",
+      muted: "#97a5d1",
+      grid: "rgba(151, 165, 209, 0.12)"
+    };
+
+    function animateCounters() {
+      document.querySelectorAll("[data-counter]").forEach((node) => {
+        const rawValue = node.getAttribute("data-counter");
+        const isNumber = /^\d+$/.test(rawValue);
+        if (!isNumber) {
+          node.textContent = rawValue;
+          return;
+        }
+        const target = Number(rawValue);
+        const startedAt = performance.now();
+        const duration = 1200;
+        const tick = (now) => {
+          const progress = Math.min(1, (now - startedAt) / duration);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          node.textContent = Math.round(target * eased).toLocaleString();
+          if (progress < 1) {
+            requestAnimationFrame(tick);
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+    }
+
+    function makeChart(id) {
+      const element = document.getElementById(id);
+      return echarts.init(element, null, { renderer: "canvas" });
+    }
+
+    function baseAxis() {
+      return {
+        axisLine: { lineStyle: { color: palette.grid } },
+        axisTick: { show: false },
+        axisLabel: { color: palette.muted },
+        splitLine: { lineStyle: { color: palette.grid } }
+      };
+    }
+
+    function initCharts() {
+      const charts = dashboardData.charts;
+      const summary = dashboardData.summary;
+
+      const treemap = makeChart("localityTreemap");
+      treemap.setOption({
+        tooltip: {
+          formatter: (params) => `${params.name}<br/>${params.value} centers`
+        },
+        series: [{
+          type: "treemap",
+          roam: false,
+          breadcrumb: { show: false },
+          nodeClick: false,
+          top: 8,
+          bottom: 8,
+          color: [palette.cyan, palette.violet, palette.teal, palette.rose, palette.amber],
+          itemStyle: {
+            borderColor: "rgba(5, 8, 22, 0.9)",
+            borderWidth: 4,
+            gapWidth: 4,
+            borderRadius: 14
+          },
+          label: {
+            color: "#f6f7fb",
+            fontFamily: "IBM Plex Sans",
+            formatter: (params) => `${params.name}\n${params.value}`
+          },
+          upperLabel: { show: false },
+          data: charts.top_primary_localities.map((item) => ({
+            name: item.name,
+            value: item.value
+          }))
+        }]
+      });
+
+      const gauge = makeChart("fragmentationGauge");
+      gauge.setOption({
+        series: [{
+          type: "gauge",
+          startAngle: 205,
+          endAngle: -25,
+          radius: "92%",
+          progress: {
+            show: true,
+            width: 18,
+            roundCap: true,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                { offset: 0, color: palette.cyan },
+                { offset: 1, color: palette.violet }
+              ])
+            }
+          },
+          axisLine: {
+            roundCap: true,
+            lineStyle: {
+              width: 18,
+              color: [[1, "rgba(255,255,255,0.08)"]]
+            }
+          },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          pointer: { show: false },
+          anchor: { show: false },
+          title: {
+            offsetCenter: [0, "60%"],
+            color: palette.muted,
+            fontSize: 13
+          },
+          detail: {
+            valueAnimation: true,
+            formatter: "{value} / 100",
+            offsetCenter: [0, "6%"],
+            color: "#f6f7fb",
+            fontFamily: "Space Grotesk",
+            fontSize: 30
+          },
+          data: [{
+            value: summary.fragmentation_index,
+            name: "Locality fragmentation"
+          }]
+        }]
+      });
+
+      const histogram = makeChart("clusterHistogram");
+      histogram.setOption({
+        grid: { left: 48, right: 18, top: 20, bottom: 38 },
+        tooltip: {
+          trigger: "axis",
+          formatter: (params) => {
+            const item = params[0];
+            return `${item.axisValue} center clusters<br/>${item.value} localities`;
+          }
+        },
+        xAxis: {
+          type: "category",
+          data: charts.cluster_histogram.map((item) => item.name),
+          ...baseAxis(),
+          name: "Centers per locality",
+          nameLocation: "middle",
+          nameGap: 30
+        },
+        yAxis: {
+          type: "value",
+          ...baseAxis(),
+          name: "Localities",
+          nameTextStyle: { color: palette.muted }
+        },
+        series: [{
+          type: "bar",
+          barWidth: "52%",
+          data: charts.cluster_histogram.map((item) => item.value),
+          itemStyle: {
+            borderRadius: [8, 8, 0, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: palette.teal },
+              { offset: 1, color: "rgba(73, 246, 179, 0.24)" }
+            ])
+          }
+        }]
+      });
+
+      const pincode = makeChart("pincodeChart");
+      pincode.setOption({
+        grid: { left: 70, right: 24, top: 20, bottom: 22 },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" }
+        },
+        xAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "category",
+          inverse: true,
+          data: charts.pincodes.map((item) => item.name),
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.pincodes.map((item) => item.value),
+          barWidth: 18,
+          itemStyle: {
+            borderRadius: 999,
+            color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+              { offset: 0, color: palette.violet },
+              { offset: 1, color: palette.cyan }
+            ])
+          },
+          label: {
+            show: true,
+            position: "right",
+            color: "#f6f7fb"
+          }
+        }]
+      });
+
+      const precision = makeChart("precisionChart");
+      precision.setOption({
+        tooltip: { trigger: "item" },
+        legend: {
+          bottom: 0,
+          textStyle: { color: palette.muted }
+        },
+        series: [{
+          type: "pie",
+          radius: ["56%", "78%"],
+          center: ["50%", "44%"],
+          itemStyle: {
+            borderColor: "#050816",
+            borderWidth: 4
+          },
+          label: {
+            color: "#f6f7fb",
+            formatter: "{b}\n{c}"
+          },
+          data: charts.precision_mix.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: [palette.cyan, palette.teal, palette.violet, palette.amber, palette.rose][index % 5]
+            }
+          }))
+        }]
+      });
+
+      const city = makeChart("cityChart");
+      city.setOption({
+        grid: { left: 58, right: 18, top: 18, bottom: 32 },
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        xAxis: {
+          type: "category",
+          data: charts.city_distribution.map((item) => item.name),
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.city_distribution.map((item) => item.value),
+          barWidth: "34%",
+          itemStyle: {
+            borderRadius: [10, 10, 0, 0],
+            color: palette.amber
+          }
+        }]
+      });
+
+      const road = makeChart("roadChart");
+      road.setOption({
+        grid: { left: 86, right: 20, top: 18, bottom: 22 },
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        xAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "category",
+          inverse: true,
+          data: charts.roads.map((item) => item.name),
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.roads.map((item) => item.value),
+          barWidth: 14,
+          itemStyle: {
+            borderRadius: 999,
+            color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+              { offset: 0, color: palette.rose },
+              { offset: 1, color: palette.violet }
+            ])
+          }
+        }]
+      });
+
+      const cue = makeChart("landmarkCueChart");
+      cue.setOption({
+        tooltip: { trigger: "item" },
+        series: [{
+          type: "pie",
+          radius: ["42%", "76%"],
+          center: ["50%", "48%"],
+          label: {
+            color: "#f6f7fb",
+            formatter: "{b}\n{c}"
+          },
+          itemStyle: {
+            borderWidth: 4,
+            borderColor: "#050816"
+          },
+          data: charts.landmark_cues.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: [palette.teal, palette.cyan, palette.amber, palette.rose, palette.violet, "#6e7ca8"][index % 6]
+            }
+          }))
+        }]
+      });
+
+      const nearby = makeChart("nearbyPlaceChart");
+      nearby.setOption({
+        grid: { left: 96, right: 18, top: 18, bottom: 22 },
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        xAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "category",
+          inverse: true,
+          data: charts.nearby_places.map((item) => item.name),
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.nearby_places.map((item) => item.value),
+          barWidth: 14,
+          itemStyle: {
+            borderRadius: 999,
+            color: palette.teal
+          }
+        }]
+      });
+
+      const confidence = makeChart("confidenceChart");
+      confidence.setOption({
+        grid: { left: 48, right: 18, top: 18, bottom: 30 },
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        xAxis: {
+          type: "category",
+          data: charts.confidence.map((item) => item.name),
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.confidence.map((item) => item.value),
+          barWidth: "52%",
+          itemStyle: {
+            borderRadius: [8, 8, 0, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: palette.cyan },
+              { offset: 1, color: "rgba(68, 240, 255, 0.2)" }
+            ])
+          }
+        }]
+      });
+
+      const missing = makeChart("missingFieldChart");
+      missing.setOption({
+        grid: { left: 96, right: 18, top: 18, bottom: 22 },
+        tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        xAxis: {
+          type: "value",
+          ...baseAxis()
+        },
+        yAxis: {
+          type: "category",
+          inverse: true,
+          data: charts.missing_fields.map((item) => item.name),
+          ...baseAxis()
+        },
+        series: [{
+          type: "bar",
+          data: charts.missing_fields.map((item) => item.value),
+          barWidth: 16,
+          itemStyle: {
+            borderRadius: 999,
+            color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+              { offset: 0, color: palette.amber },
+              { offset: 1, color: palette.rose }
+            ])
+          }
+        }]
+      });
+
+      window.addEventListener("resize", () => {
+        [treemap, gauge, histogram, pincode, precision, city, road, cue, nearby, confidence, missing].forEach((chart) => chart.resize());
+      });
+    }
+
+    function precisionLabel(code) {
+      const map = {
+        area_exact: "Area exact",
+        area_part: "Area part",
+        area_part_pin: "Area + pin",
+        intersection: "Intersection",
+        road: "Road",
+        cleaned: "Cleaned address",
+        pincode: "Pincode fallback",
+        city: "City fallback",
+        unresolved: "Unresolved"
+      };
+      return map[code] || code;
+    }
+
+    function buildPopup(point) {
+      const rows = [
+        `<strong>${point.business_name}</strong>`,
+        point.primary_locality ? `<div>Locality: ${point.primary_locality}</div>` : "",
+        point.pincode ? `<div>PIN: ${point.pincode}</div>` : "",
+        point.road_name ? `<div>Road: ${point.road_name}</div>` : "",
+        point.landmark ? `<div>Landmark: ${point.landmark}</div>` : "",
+        `<div>Map precision: ${precisionLabel(point.precision)}</div>`,
+        point.cleaned_address ? `<div style="margin-top:8px;color:${palette.muted}">${point.cleaned_address}</div>` : ""
+      ];
+      return rows.filter(Boolean).join("");
+    }
+
+    function initMap() {
+      const map = L.map("intelMap", {
+        zoomControl: true,
+        minZoom: 9
+      }).setView(dashboardData.map.center, 11);
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap &copy; CARTO"
+      }).addTo(map);
+
+      const markerCluster = L.markerClusterGroup({
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        maxClusterRadius: 34
+      });
+
+      const markers = [];
+      dashboardData.map.points.forEach((point) => {
+        if (point.lat == null || point.lon == null) {
+          return;
+        }
+        const marker = L.circleMarker([point.lat, point.lon], {
+          radius: 7,
+          weight: 1.4,
+          color: "#0c1022",
+          fillColor: {
+            area_exact: palette.cyan,
+            area_part: palette.teal,
+            area_part_pin: palette.violet,
+            intersection: palette.amber,
+            road: palette.rose,
+            cleaned: palette.cyan,
+            pincode: "#7d8db8",
+            city: "#5a658b"
+          }[point.precision] || palette.cyan,
+          fillOpacity: 0.9
+        });
+        marker.bindPopup(buildPopup(point));
+        marker.meta = point;
+        markers.push(marker);
+        markerCluster.addLayer(marker);
+      });
+
+      map.addLayer(markerCluster);
+
+      const heatData = dashboardData.map.hotspots.map((item) => [item.lat, item.lon, item.count]);
+      if (heatData.length) {
+        L.heatLayer(heatData, {
+          radius: 28,
+          blur: 22,
+          maxZoom: 14,
+          gradient: {
+            0.2: "#49f6b3",
+            0.45: "#44f0ff",
+            0.75: "#8d7dff",
+            1.0: "#ff6fb5"
+          }
+        }).addTo(map);
+      }
+
+      const resultsRoot = document.getElementById("searchResults");
+      const searchInput = document.getElementById("centerSearch");
+
+      function renderResults(items) {
+        resultsRoot.innerHTML = "";
+        if (!items.length) {
+          resultsRoot.innerHTML = '<div class="empty-state">No matching plotted centers.</div>';
+          return;
+        }
+        items.slice(0, 18).forEach((marker) => {
+          const point = marker.meta;
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "search-item";
+          card.innerHTML = `
+            <strong>${point.business_name}</strong>
+            <span>${point.primary_locality || point.pincode || "Unspecified locality"} • ${precisionLabel(point.precision)}</span>
+          `;
+          card.addEventListener("click", () => {
+            map.setView(marker.getLatLng(), Math.max(map.getZoom(), 14), { animate: true });
+            marker.openPopup();
+          });
+          resultsRoot.appendChild(card);
+        });
+      }
+
+      function filterMarkers(term) {
+        const q = term.trim().toLowerCase();
+        if (!q) {
+          renderResults(markers);
+          const group = L.featureGroup(markers);
+          if (markers.length) {
+            map.fitBounds(group.getBounds().pad(0.18));
+          }
+          return;
+        }
+        const filtered = markers.filter((marker) => {
+          const point = marker.meta;
+          return [
+            point.business_name,
+            point.primary_locality,
+            point.colony_or_area,
+            point.road_name,
+            point.pincode
+          ].join(" ").toLowerCase().includes(q);
+        });
+        renderResults(filtered);
+        if (filtered.length === 1) {
+          map.setView(filtered[0].getLatLng(), 15, { animate: true });
+          filtered[0].openPopup();
+        } else if (filtered.length > 1) {
+          const group = L.featureGroup(filtered);
+          map.fitBounds(group.getBounds().pad(0.18));
+        }
+      }
+
+      searchInput.addEventListener("input", (event) => filterMarkers(event.target.value));
+      renderResults(markers);
+    }
+
+    animateCounters();
+    initCharts();
+    initMap();
+  </script>
+</body>
+</html>
